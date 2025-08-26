@@ -1,4 +1,4 @@
-package com.example.room_renting_group1
+package ch.hevs.room_renting_group1
 
 import io.flutter.embedding.android.FlutterActivity
 
