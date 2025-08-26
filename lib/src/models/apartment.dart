@@ -4,7 +4,7 @@ class Apartment {
   final String city;
   final int price;
   final String? description;
-  final String? ownerId; // pour sécuriser ensuite
+  final String? ownerId; // for security after
 
   Apartment({
     required this.id,
