@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/apartment_service.dart';
-import '../models/apartment.dart';
+import '../../../core/services/apartment_service.dart';
+import '../../../core/models/apartment.dart';
 
 class EditApartmentPage extends StatefulWidget {
   final Apartment? apartment;

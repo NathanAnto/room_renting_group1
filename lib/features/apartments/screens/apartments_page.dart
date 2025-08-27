@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../data/apartment_service.dart';
-import '../models/apartment.dart';
+import '../../../core/services/apartment_service.dart';
+import '../../../core/models/apartment.dart';
 import 'edit_apartment_page.dart';
 
 class ApartmentsPage extends StatelessWidget {
