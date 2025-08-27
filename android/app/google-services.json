@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:640196927691:android:aab60b15e70fb5e0ea7b4e",
+        "android_client_info": {
+          "package_name": "ch.hevs.room_renting_group1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbK-GoIyA9dlXJbSFbBxcmod5NK6DncTo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:640196927691:android:30f59da6b1505482ea7b4e",
         "android_client_info": {
           "package_name": "com.example.room_renting_group1"
