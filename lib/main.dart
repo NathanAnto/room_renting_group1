@@ -1,16 +1,19 @@
+// main.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'firebase_options.dart';
-
-
-import 'features/listings/screens/apartments_page.dart';
+import 'main_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  runApp(const MyApp());
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  // Le code de connexion a été retiré, il n'est plus utile.
+  
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -18,13 +21,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Room Renting CRUD Demo',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+    return ShadApp.custom(
+      theme: ShadThemeData(
+        brightness: Brightness.dark,
+        colorScheme: const ShadSlateColorScheme.dark(),
       ),
-      home: const ApartmentsPage(), 
+      appBuilder: (context) {
+        return MaterialApp(
+          theme: Theme.of(context),
+          builder: (context, child) {
+            return ShadAppBuilder(child: child!);
+          },
+          home: const MainShell(),
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }

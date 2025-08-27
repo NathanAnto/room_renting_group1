@@ -16,7 +16,7 @@ class ProfileService {
 
   /// Référence à la collection 'users' dans Firestore pour éviter les erreurs de frappe.
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      _firestore.collection('users');
+      _firestore.collection('Profile');
 
   /// Récupère le profil d'un utilisateur spécifique à partir de son ID.
   ///
