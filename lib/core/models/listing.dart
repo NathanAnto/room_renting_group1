@@ -1,4 +1,4 @@
-// lib/models/listing.dart
+// lib/core/models/listing.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Listing {
@@ -8,17 +8,18 @@ class Listing {
   final String description;
   final String type;
   final double rentPerMonth;
-  final double predictedRentPerMonth; // Corrected field name
+  final double predictedRentPerMonth;
   final String city;
-  final String addressLine; // Corrected field name
+  final String addressLine;
   final double lat;
   final double lng;
   final double surface;
-  final String availability; // Changed to String
+  final String availability;
   final Map<String, bool> amenities;
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final List<String> images; // Added images list
 
   Listing({
     this.id,
@@ -38,6 +39,7 @@ class Listing {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    required this.images, // Added images list to constructor
   });
 
   factory Listing.fromFirestore(DocumentSnapshot doc) {
@@ -49,17 +51,18 @@ class Listing {
       description: data['description'] ?? '',
       type: data['type'] ?? '',
       rentPerMonth: (data['rentPerMonth'] ?? 0.0).toDouble(),
-      predictedRentPerMonth: (data['perdictedRentPerMonth'] ?? 0.0).toDouble(), // Use the field name as it is in your database
+      predictedRentPerMonth: (data['perdictedRentPerMonth'] ?? 0.0).toDouble(),
       city: data['city'] ?? '',
-      addressLine: data['addressLine'] ?? '', // Use the correct field name
+      addressLine: data['addressLine'] ?? '',
       lat: (data['lat'] ?? 0.0).toDouble(),
       lng: (data['lng'] ?? 0.0).toDouble(),
       surface: (data['surface'] ?? 0.0).toDouble(),
-      availability: data['availabilty'] ?? '', // Use the correct field name and type
+      availability: data['availabilty'] ?? '',
       amenities: Map<String, bool>.from(data['amenities'] ?? {}),
       status: data['status'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updateAt'] as Timestamp).toDate(),
+      images: List<String>.from(data['images'] ?? []), // Read images from Firestore
     );
   }
 
@@ -70,17 +73,18 @@ class Listing {
       'description': description,
       'type': type,
       'rentPerMonth': rentPerMonth,
-      'perdictedRentPerMonth': predictedRentPerMonth, // Match the database field name
+      'perdictedRentPerMonth': predictedRentPerMonth,
       'city': city,
-      'addressLine': addressLine, // Match the database field name
+      'addressLine': addressLine,
       'lat': lat,
       'lng': lng,
       'surface': surface,
-      'availabilty': availability, // Match the database field name
+      'availabilty': availability,
       'amenities': amenities,
       'status': status,
       'createdAt': createdAt,
-      'updateAt': updatedAt, // Match the database field name
+      'updateAt': updatedAt,
+      'images': images, // Write images to Firestore
     };
   }
 }
