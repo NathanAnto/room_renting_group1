@@ -6,6 +6,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/models/listing.dart';
 import '../state/listing_state.dart';
+import 'single_listing_screen.dart';
 
 class ListingsScreen extends ConsumerWidget {
   const ListingsScreen({super.key});
@@ -18,7 +19,6 @@ class ListingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
-        // The title color is now managed by the theme, ensuring visibility.
         title: const Text('Available Listings'),
         backgroundColor: theme.colorScheme.background,
         elevation: 0,
@@ -53,8 +53,13 @@ class ListingsScreen extends ConsumerWidget {
                     children: [
                       ShadButton.outline(
                         onPressed: () {
-                          // TODO: Implement view details page navigation
-                          print('View details for ${listing.title}');
+                          // Navigate to the single listing screen, passing the listing object
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SingleListingScreen(listing: listing),
+                            ),
+                          );
                         },
                         child: const Text('View Details'),
                       ),

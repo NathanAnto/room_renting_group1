@@ -113,7 +113,7 @@ class CreateListingScreen extends HookWidget {
 
                     final newListing = Listing(
                       id: listingId,
-                      ownerId: 'placeholder-user-id',
+                      ownerId: 'placeholder-user-id', // TODO: Replace with actual user ID from auth service
                       title: titleController.text,
                       description: descriptionController.text,
                       type: selectedType.value!,
