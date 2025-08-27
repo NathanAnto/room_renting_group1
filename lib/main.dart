@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:room_renting_group1/features/listings/screens/create_listing_screen.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Ensure this is imported
 import 'firebase_options.dart';
-
-
-import 'features/listings/screens/apartments_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(
+    // Correctly wrap the app with ProviderScope
+    const ProviderScope(
+      child: MyApp(),
+    ),
   );
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -18,13 +21,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Room Renting CRUD Demo',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+    return ShadApp.custom(
+      themeMode: ThemeMode.dark,
+      darkTheme: ShadThemeData(
+        brightness: Brightness.dark,
+        colorScheme: const ShadSlateColorScheme.dark(),
       ),
-      home: const ApartmentsPage(), 
+      appBuilder: (context) {
+        return MaterialApp(
+          theme: Theme.of(context),
+          builder: (context, child) {
+            return ShadAppBuilder(child: child!);
+          },
+          home: const CreateListingScreen(),
+        );
+      },
     );
   }
 }
