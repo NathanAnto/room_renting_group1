@@ -12,8 +12,6 @@ class AuthService {
 
   Future<UserCredential> signUpWithEmail(String email, String password) async {
     final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-    // Optionnel : vérification email
-    // await cred.user?.sendEmailVerification();
     return cred;
   }
 
