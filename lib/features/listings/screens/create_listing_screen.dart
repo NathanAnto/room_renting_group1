@@ -182,8 +182,8 @@ class CreateListingScreen extends HookWidget {
                       surface: double.tryParse(surfaceController.text) ?? 0.0,
                       availability: selectedAvailability.value!,
                       amenities: {
-                        ...selectedAmenities.value,
                         ...amenityValues.value,
+                        ...selectedAmenities.value,
                       },
                       status: 'open',
                       createdAt: DateTime.now(),
@@ -199,6 +199,7 @@ class CreateListingScreen extends HookWidget {
                     surfaceController.clear();
                     selectedType.value = null;
                     selectedAvailability.value = null;
+                    amenityValues.value = {};
                     selectedAmenities.value = {};
                     selectedFiles.value = [];
                     addressController.clear();
