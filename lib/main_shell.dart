@@ -1,7 +1,7 @@
 // lib/main_shell.dart
 
 import 'package:flutter/material.dart';
-import 'package:room_renting_group1/features/apartments/screens/apartments_page.dart';
+import 'package:room_renting_group1/features/listings/screens/listings_screen.dart';
 import 'package:room_renting_group1/features/profile/screens/profile_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -16,7 +16,7 @@ class _MainShellState extends State<MainShell> {
 
   // Liste des pages principales de l'application
   static const List<Widget> _pages = <Widget>[
-    ApartmentsPage(),
+    ListingsScreen(),
     ProfileScreen(),
     // Ajoutez d'autres pages principales ici
   ];

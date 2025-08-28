@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:room_renting_group1/features/listings/screens/create_listing_screen.dart';
+import 'package:room_renting_group1/features/listings/screens/listings_screen.dart';
 
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -68,7 +70,7 @@ class _MyAppState extends State<MyApp> {
       },
       routes: [
         // Home
-        GoRoute(path: '/', builder: (ctx, s) => const ApartmentsPage()),
+        GoRoute(path: '/', builder: (ctx, s) => const ListingsScreen()),
 
         // Auth
         GoRoute(path: '/login', builder: (ctx, s) => const LoginScreen()),

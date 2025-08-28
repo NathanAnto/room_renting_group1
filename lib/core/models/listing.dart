@@ -15,7 +15,7 @@ class Listing {
   final double lng;
   final double surface;
   final String availability;
-  final Map<String, bool> amenities;
+  final Map<String, dynamic> amenities;
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -58,7 +58,7 @@ class Listing {
       lng: (data['lng'] ?? 0.0).toDouble(),
       surface: (data['surface'] ?? 0.0).toDouble(),
       availability: data['availabilty'] ?? '',
-      amenities: Map<String, bool>.from(data['amenities'] ?? {}),
+      amenities: data['amenities'] ?? {},
       status: data['status'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updateAt'] as Timestamp).toDate(),

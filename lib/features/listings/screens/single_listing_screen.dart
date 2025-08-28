@@ -116,8 +116,11 @@ class SingleListingScreen extends StatelessWidget {
                     spacing: 8.0,
                     runSpacing: 8.0,
                     children: listing.amenities.entries
-                        .where((entry) => entry.value)
+                        .where((entry) => entry.value is bool && entry.value == true)
                         .map((entry) => ShadBadge(child: Text(entry.key.replaceAll('_', ' '))))
+                        .followedBy(listing.amenities.entries
+                        .where((entry) => entry.value is num)
+                        .map((entry) => ShadBadge(child: Text('${entry.key.replaceAll('_', ' ')}: ${entry.value}'))))
                         .toList(),
                   ),
                   const SizedBox(height: 48),
