@@ -1,6 +1,7 @@
 // lib/core/models/user_model.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:room_renting_group1/features/profile/screens/create_profile_screen.dart'; 
 
 /// Énumération pour définir les rôles des utilisateurs dans l'application.
 /// Un utilisateur peut être un étudiant, un propriétaire ou un administrateur.

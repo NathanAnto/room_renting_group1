@@ -1,5 +1,6 @@
+// lib/features/authentication/screens/sign_up_screen.dart
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -20,6 +21,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -35,7 +40,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   TextFormField(
                     controller: _email,
                     decoration: const InputDecoration(labelText: 'Email'),
-                    validator: (v) => (v == null || !v.contains('@')) ? 'Email invalide' : null,
+                    keyboardType: TextInputType.emailAddress,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    // ✅ VALIDATEUR AMÉLIORÉ AVEC UNE EXPRESSION RÉGULIÈRE
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Veuillez entrer une adresse e-mail.';
+                      }
+                      // Expression régulière pour un format e-mail standard
+                      final emailRegex = RegExp(
+                        r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+                      );
+                      if (!emailRegex.hasMatch(value)) {
+                        return 'Veuillez entrer un e-mail valide.';
+                      }
+                      return null; // Retourne null si l'e-mail est valide
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -63,7 +83,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             setState(() { _loading = true; _error = null; });
                             try {
                               await _auth.signUpWithEmail(_email.text.trim(), _password.text.trim());
-                              if (mounted) context.go('/');
+                              
+                              if (mounted) {
+                                Navigator.of(context).popUntil((route) => route.isFirst);
+                              }
+
                             } catch (e) {
                               setState(() => _error = 'Création de compte échouée');
                             } finally {
@@ -78,7 +102,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         : const Text('Créer mon compte'),
                   ),
                   const SizedBox(height: 8),
-                  TextButton(onPressed: () => context.go('/login'), child: const Text('Déjà inscrit ? Se connecter')),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Déjà inscrit ? Se connecter'),
+                  ),
                 ]),
               ),
             ),
