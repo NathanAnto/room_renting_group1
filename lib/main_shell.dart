@@ -1,5 +1,5 @@
 // lib/main_shell.dart (Mis à jour)
-
+ 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,7 +13,7 @@ class MainShell extends StatelessWidget {
     return Scaffold(
       // Le corps de la page est maintenant l'enfant fourni par le routeur
       body: child,
-      
+     
       // La barre de navigation en bas
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -35,7 +35,7 @@ class MainShell extends StatelessWidget {
       ),
     );
   }
-
+ 
   // Fonction pour déterminer quel onglet est actif en fonction de l'URL
   int _calculateSelectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
@@ -45,7 +45,7 @@ class MainShell extends StatelessWidget {
     // Par défaut, c'est l'accueil
     return 0;
   }
-
+ 
   // Fonction pour naviguer lorsque l'on clique sur un onglet
   void _onItemTapped(int index, BuildContext context) {
     switch (index) {
