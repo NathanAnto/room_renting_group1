@@ -1,10 +1,10 @@
-import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
-
 import 'firebase_options.dart';
 
 // Pages principales
@@ -15,6 +15,8 @@ import 'features/apartments/screens/edit_apartment_page.dart';
 import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/sign_up_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
+import 'auth_gate.dart';
+
 
 // Settings / About
 import 'features/profile/screens/settings_screen.dart';
@@ -24,12 +26,19 @@ import 'features/profile/screens/about_screens.dart';
 import 'core/models/apartment.dart';
 
 Future<void> main() async {
+  // Assure l'initialisation des bindings Flutter
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialise Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const MyApp());
+  
+  // Le code de connexion de test a été retiré.
+  // La gestion se fait maintenant dans AuthGate.
+  
+  runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
@@ -102,8 +111,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return ShadApp.custom(
-      themeMode: ThemeMode.dark,
-      darkTheme: ShadThemeData(
+      theme: ShadThemeData(
         brightness: Brightness.dark,
         colorScheme: ShadSlateColorScheme.dark(),
       ),
@@ -112,12 +120,17 @@ class _MyAppState extends State<MyApp> {
           title: 'Room Renting',
           debugShowCheckedModeBanner: false,
           theme: Theme.of(context),
-          builder: (context, child) => ShadAppBuilder(child: child!),
-          routerConfig: _router,
+          builder: (context, child) {
+            return ShadAppBuilder(child: child!);
+          },
+          // On remplace MainShell par AuthGate comme point d'entrée de l'application
+          home: const AuthGate(),
+          debugShowCheckedModeBanner: false,
         );
       },
     );
   }
+
 }
 
 /// Rafraîchit GoRouter lorsque l’état Firebase Auth change

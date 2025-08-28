@@ -1,5 +1,6 @@
+// lib/features/authentication/screens/forgot_password_screen.dart
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/services/auth_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -41,12 +42,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       setState(() { _loading = false; });
                     }
                   },
-            child: _loading ? const CircularProgressIndicator(strokeWidth: 2) : const Text('Envoyer'),
+            child: _loading 
+                ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)) 
+                : const Text('Envoyer'),
           ),
           const SizedBox(height: 8),
           if (_msg != null) Text(_msg!),
           const Spacer(),
-          TextButton(onPressed: () => context.go('/login'), child: const Text('Retour')),
+          
+          // ✅ CORRECTION : Remplacement de context.go par Navigator.pop
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text('Retour')
+          ),
         ]),
       ),
     );
