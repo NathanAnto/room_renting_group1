@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'features/listings/screens/create_listing_screen.dart';
 import 'firebase_options.dart';
 import 'features/listings/screens/listings_screen.dart'; // Import the new screen
 // import 'features/listings/screens/create_listing_screen.dart'; // No longer the home screen
@@ -33,7 +34,7 @@ class MyApp extends StatelessWidget {
           builder: (context, child) {
             return ShadAppBuilder(child: child!);
           },
-          home: const ListingsScreen(), // Set ListingsScreen as the home
+          home: const CreateListingScreen(), // Set ListingsScreen as the home
         );
       },
     );

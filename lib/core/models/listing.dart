@@ -19,7 +19,7 @@ class Listing {
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final List<String> images; // Added images list
+  final List<String> images;
 
   Listing({
     this.id,
@@ -39,7 +39,7 @@ class Listing {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
-    required this.images, // Added images list to constructor
+    required this.images,
   });
 
   factory Listing.fromFirestore(DocumentSnapshot doc) {
@@ -62,7 +62,7 @@ class Listing {
       status: data['status'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updateAt'] as Timestamp).toDate(),
-      images: List<String>.from(data['images'] ?? []), // Read images from Firestore
+      images: List<String>.from(data['images'] ?? []),
     );
   }
 
