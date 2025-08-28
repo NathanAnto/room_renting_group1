@@ -1,17 +1,15 @@
+// lib/main.dart
+import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'features/listings/screens/create_listing_screen.dart';
-import 'firebase_options.dart';
-import 'features/listings/screens/listings_screen.dart'; // Import the new screen
-
-import 'dart:async';
 import 'package:go_router/go_router.dart';
+
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:shadcn_ui/shadcn_ui.dart';
+
 import 'firebase_options.dart';
 
 // Pages principales
@@ -22,8 +20,6 @@ import 'features/apartments/screens/edit_apartment_page.dart';
 import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/sign_up_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
-import 'auth_gate.dart';
-
 
 // Settings / About
 import 'features/profile/screens/settings_screen.dart';
@@ -33,19 +29,13 @@ import 'features/profile/screens/about_screens.dart';
 import 'core/models/apartment.dart';
 
 Future<void> main() async {
-  // Assure l'initialisation des bindings Flutter
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialise Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
-  // Le code de connexion de test a été retiré.
-  // La gestion se fait maintenant dans AuthGate.
-  
+
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
@@ -66,9 +56,11 @@ class _MyAppState extends State<MyApp> {
       refreshListenable: GoRouterRefreshStream(authStream),
       redirect: (context, state) {
         final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-        final isAuthRoute = state.matchedLocation == '/login' ||
-            state.matchedLocation == '/signup' ||
-            state.matchedLocation == '/forgot';
+        final isAuthRoute = {
+          '/login',
+          '/signup',
+          '/forgot',
+        }.contains(state.matchedLocation);
 
         if (!isLoggedIn && !isAuthRoute) return '/login';
         if (isLoggedIn && isAuthRoute) return '/';
@@ -83,11 +75,11 @@ class _MyAppState extends State<MyApp> {
         GoRoute(path: '/signup', builder: (ctx, s) => const SignUpScreen()),
         GoRoute(path: '/forgot', builder: (ctx, s) => const ForgotPasswordScreen()),
 
-        // Settings & About
+        // Settings & About (en supposant des routes statiques dans les écrans)
         GoRoute(path: SettingsScreen.route, builder: (ctx, s) => const SettingsScreen()),
         GoRoute(path: AboutScreen.route, builder: (ctx, s) => const AboutScreen()),
 
-        // Edit apartment (ouverture via context.push('/edit-apartment', extra: Apartment?))
+        // Edit apartment (ouvrir via context.push('/edit-apartment', extra: Apartment?))
         GoRoute(
           path: '/edit-apartment',
           builder: (ctx, s) {
@@ -117,29 +109,25 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ShadApp.custom
-      theme: ShadThemeData(
-      themeMode: ThemeMode.dark,
-      darkTheme: ShadThemeData(
-        brightness: Brightness.dark,
-        colorScheme: ShadSlateColorScheme.dark(),
-      ),
-      appBuilder: (context) {
-        return MaterialApp.router(
-          title: 'Room Renting',
-          debugShowCheckedModeBanner: false,
-          theme: Theme.of(context),
-          builder: (context, child) {
-            return ShadAppBuilder(child: child!);
-          },
-          // On remplace MainShell par AuthGate comme point d'entrée de l'application
-          home: const AuthGate(),
-          debugShowCheckedModeBanner: false,
-        );
+    // Matérialise l’appli avec le Router et injecte le thème shadcn_ui
+    return MaterialApp.router(
+      title: 'Room Renting',
+      debugShowCheckedModeBanner: false,
+      routerConfig: _router,
+      builder: (context, child) {
+        // Fournit le thème shadcn_ui et ses utilitaires au dessous
+      return ShadApp(
+        theme: ShadThemeData(
+          brightness: Brightness.dark,
+          colorScheme: ShadSlateColorScheme.dark(),
+        ),
+        builder: (context, _) {
+          return ShadAppBuilder(child: child!);
+        },
+      );
       },
     );
   }
-
 }
 
 /// Rafraîchit GoRouter lorsque l’état Firebase Auth change
