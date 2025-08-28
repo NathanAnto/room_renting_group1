@@ -11,7 +11,6 @@ final profileServiceProvider = Provider<ProfileService>((ref) {
 final userProfileProvider = FutureProvider<UserModel?>((ref) {
   final profileService = ref.watch(profileServiceProvider);
 
-  // ✅ MODIFICATION POUR LE TEST :
-  // On ignore la connexion et on charge directement un profil par son ID.
-  return profileService.getUserProfile("FmxIVtvr930fjtjcuIWA");
+  // ✅ On revient à la logique normale qui dépend de la connexion
+  return profileService.getCurrentUserProfile();
 });
