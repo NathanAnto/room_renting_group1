@@ -1,4 +1,5 @@
 // lib/main.dart
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,33 +8,34 @@ import 'package:go_router/go_router.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:room_renting_group1/features/listings/screens/create_listing_screen.dart';
 import 'package:room_renting_group1/features/listings/screens/listings_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 import 'firebase_options.dart';
 
-// Pages principales
+// --- Pages ---
+// Coquille principale
+import 'main_shell.dart'; 
+// Pages dans la coquille
 import 'features/apartments/screens/apartments_page.dart';
-import 'features/apartments/screens/edit_apartment_page.dart';
-
-// Auth
+import 'features/profile/screens/profile_screen.dart';
+// Pages hors de la coquille
 import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/sign_up_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
-
-// Settings / About
+import 'features/profile/screens/create_profile_screen.dart';
+import 'features/apartments/screens/edit_apartment_page.dart';
 import 'features/profile/screens/settings_screen.dart';
 import 'features/profile/screens/about_screens.dart';
 
-// Modèles
+// --- Modèles ---
 import 'core/models/apartment.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -50,38 +52,60 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-
     final authStream = FirebaseAuth.instance.authStateChanges();
 
     _router = GoRouter(
       initialLocation: '/login',
       refreshListenable: GoRouterRefreshStream(authStream),
-      redirect: (context, state) {
-        final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-        final isAuthRoute = {
-          '/login',
-          '/signup',
-          '/forgot',
-        }.contains(state.matchedLocation);
+      redirect: (context, state) async {
+        final user = FirebaseAuth.instance.currentUser;
+        final isLoggedIn = user != null;
+        final isAuthRoute = {'/login', '/signup', '/forgot'}.contains(state.matchedLocation);
 
-        if (!isLoggedIn && !isAuthRoute) return '/login';
-        if (isLoggedIn && isAuthRoute) return '/';
+        if (!isLoggedIn) {
+          return isAuthRoute ? null : '/login';
+        }
+
+        final profileDoc = await FirebaseFirestore.instance.collection('Profile').doc(user.uid).get();
+        final profileExists = profileDoc.exists;
+        final isCreatingProfile = state.matchedLocation == '/create-profile';
+
+        if (!profileExists && !isCreatingProfile) {
+          return '/create-profile';
+        }
+
+        if (isAuthRoute) {
+          return '/';
+        }
         return null;
       },
       routes: [
-        // Home
-        GoRoute(path: '/', builder: (ctx, s) => const ListingsScreen()),
+        // --- ROUTES AVEC LA BARRE DE NAVIGATION (DANS LE MAINSHELL) ---
+        ShellRoute(
+          builder: (context, state, child) {
+            return MainShell(child: child);
+          },
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (ctx, s) => const ListingsScreen(),
+            ),
+            GoRoute(
+              path: '/profile',
+              builder: (ctx, s) => const ProfileScreen(),
+            ),
+          ],
+        ),
 
-        // Auth
+        // --- ROUTES SANS LA BARRE DE NAVIGATION (PLEIN ÉCRAN) ---
         GoRoute(path: '/login', builder: (ctx, s) => const LoginScreen()),
         GoRoute(path: '/signup', builder: (ctx, s) => const SignUpScreen()),
         GoRoute(path: '/forgot', builder: (ctx, s) => const ForgotPasswordScreen()),
-
-        // Settings & About (en supposant des routes statiques dans les écrans)
+        GoRoute(path: '/create-profile', builder: (ctx, s) => const CreateProfileScreen()),
+        
+        // --- AUTRES ROUTES PLEIN ÉCRAN ---
         GoRoute(path: SettingsScreen.route, builder: (ctx, s) => const SettingsScreen()),
         GoRoute(path: AboutScreen.route, builder: (ctx, s) => const AboutScreen()),
-
-        // Edit apartment (ouvrir via context.push('/edit-apartment', extra: Apartment?))
         GoRoute(
           path: '/edit-apartment',
           builder: (ctx, s) {
@@ -91,7 +115,7 @@ class _MyAppState extends State<MyApp> {
         ),
       ],
       errorBuilder: (context, state) => Scaffold(
-        appBar: AppBar(title: const Text('Not found')),
+        appBar: AppBar(title: const Text('Page Introuvable')),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -111,28 +135,25 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    // Matérialise l’appli avec le Router et injecte le thème shadcn_ui
     return MaterialApp.router(
       title: 'Room Renting',
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
       builder: (context, child) {
-        // Fournit le thème shadcn_ui et ses utilitaires au dessous
-      return ShadApp(
-        theme: ShadThemeData(
-          brightness: Brightness.dark,
-          colorScheme: ShadSlateColorScheme.dark(),
-        ),
-        builder: (context, _) {
-          return ShadAppBuilder(child: child!);
-        },
-      );
+        return ShadApp(
+          theme: ShadThemeData(
+            brightness: Brightness.dark,
+            colorScheme: const ShadSlateColorScheme.dark(),
+          ),
+          builder: (context, _) {
+            return ShadAppBuilder(child: child!);
+          },
+        );
       },
     );
   }
 }
 
-/// Rafraîchit GoRouter lorsque l’état Firebase Auth change
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     _sub = stream.asBroadcastStream().listen((_) => notifyListeners());

@@ -2,11 +2,11 @@
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart'; // Importez go_router
 import 'package:image_picker/image_picker.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:room_renting_group1/core/models/user_model.dart';
 import 'package:room_renting_group1/core/services/profile_service.dart';
-import 'package:room_renting_group1/main_shell.dart';
 
 class CreateProfileScreen extends StatefulWidget {
   const CreateProfileScreen({super.key});
@@ -107,10 +107,8 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainShell()),
-          (route) => false,
-        );
+        // CORRECTION : Utilisation de la commande go_router
+        context.go('/');
       }
     } catch (e) {
       setState(() { _errorMessage = "Une erreur est survenue: ${e.toString()}"; });
