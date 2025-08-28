@@ -1,6 +1,7 @@
-// Fichier : lib/main.dart (Mis à jour)
-
+// main.dart
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
