@@ -1,11 +1,10 @@
 // lib/core/services/profile_service.dart
 
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../models/user_model.dart';
+import 'package:room_renting_group1/core/models/user_model.dart';
 
 class ProfileService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -15,14 +14,45 @@ class ProfileService {
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection('Profile');
 
+  Future<void> createUserProfile({
+    required String displayName,
+    required Uint8List imageData,
+    required String role,
+    required String country,
+    required String? phone,
+    String? school,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception("Utilisateur non authentifié.");
+
+    final storageRef = _storage.ref().child('profile_pictures').child('${user.uid}.jpg');
+    final uploadTask = await storageRef.putData(imageData);
+    final imageUrl = await uploadTask.ref.getDownloadURL();
+
+    final newUser = UserModel(
+      id: user.uid,
+      email: user.email ?? '',
+      displayName: displayName,
+      photoUrl: imageUrl,
+      role: role == 'student' ? UserRole.student : UserRole.homeowner,
+      school: school ?? '',
+      country: country,
+      phone: phone ?? '',
+      createdAt: DateTime.now(),
+    );
+
+    await _usersCollection.doc(user.uid).set(newUser.toJson());
+  }
+
   Future<UserModel?> getUserProfile(String userId) async {
     try {
       final docSnapshot = await _usersCollection.doc(userId).get();
       if (docSnapshot.exists) {
-        return UserModel.fromFirestore(docSnapshot);
+        // The UserModel.fromFirestore factory will handle the data conversion
+        return UserModel.fromFirestore(docSnapshot as DocumentSnapshot<Map<String, dynamic>>);
       }
     } catch (e) {
-      print("Erreur lors de la récupération du profil utilisateur: $e");
+      print("Error fetching user profile: $e");
     }
     return null;
   }
@@ -37,10 +67,9 @@ class ProfileService {
 
   Future<void> updateUserProfile(UserModel user) async {
     try {
-      // Utilisation de .set avec merge pour plus de robustesse
       await _usersCollection.doc(user.id).set(user.toJson(), SetOptions(merge: true));
     } catch (e) {
-      print("Erreur lors de la mise à jour du profil: $e");
+      print("Error updating profile: $e");
       rethrow;
     }
   }
@@ -53,15 +82,8 @@ class ProfileService {
 
       final uploadTask = storageRef.putData(imageData);
       final snapshot = await uploadTask;
-
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      // ✅ AJOUT D'UN PRINT POUR DÉBOGUER
-      // Cette ligne nous confirmera dans la console que l'URL est bien récupérée.
-      print('Mise à jour de Firestore avec l\'URL : $downloadUrl');
-
-      // ✅ MODIFICATION : Remplacement de .update par .set avec merge
-      // C'est une méthode plus sûre qui crée le champ s'il n'existe pas.
       await _usersCollection.doc(userId).set(
         {'photoUrl': downloadUrl},
         SetOptions(merge: true),
@@ -69,7 +91,7 @@ class ProfileService {
 
       return downloadUrl;
     } catch (e) {
-      print("Erreur lors de l'upload de la photo de profil: $e");
+      print("Error uploading profile picture: $e");
       rethrow;
     }
   }
