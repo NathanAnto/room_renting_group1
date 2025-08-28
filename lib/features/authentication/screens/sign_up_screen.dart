@@ -1,6 +1,7 @@
 // lib/features/authentication/screens/sign_up_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart'; // ✅ AJOUTER CET IMPORT
 import '../../../core/services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -42,19 +43,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     decoration: const InputDecoration(labelText: 'Email'),
                     keyboardType: TextInputType.emailAddress,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
-                    // ✅ VALIDATEUR AMÉLIORÉ AVEC UNE EXPRESSION RÉGULIÈRE
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Veuillez entrer une adresse e-mail.';
                       }
-                      // Expression régulière pour un format e-mail standard
-                      final emailRegex = RegExp(
-                        r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-                      );
+                      final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
                       if (!emailRegex.hasMatch(value)) {
                         return 'Veuillez entrer un e-mail valide.';
                       }
-                      return null; // Retourne null si l'e-mail est valide
+                      return null;
                     },
                   ),
                   const SizedBox(height: 12),
@@ -83,11 +80,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             setState(() { _loading = true; _error = null; });
                             try {
                               await _auth.signUpWithEmail(_email.text.trim(), _password.text.trim());
-                              
-                              if (mounted) {
-                                Navigator.of(context).popUntil((route) => route.isFirst);
-                              }
-
+                              // ✅ CORRECTION : La redirection est désormais automatique grâce au redirect de GoRouter.
+                              // Il n'y a plus besoin de code de navigation ici.
                             } catch (e) {
                               setState(() => _error = 'Création de compte échouée');
                             } finally {
@@ -103,7 +97,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    // ✅ CORRECTION
+                    onPressed: () => context.go('/login'),
                     child: const Text('Déjà inscrit ? Se connecter'),
                   ),
                 ]),
