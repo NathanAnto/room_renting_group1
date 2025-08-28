@@ -1,13 +1,16 @@
-import 'dart:async'; // <-- nécessaire pour StreamSubscription
-import 'package:flutter/material.dart';
+// main.dart
+import 'dart:async';
+import 'package.flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
+import 'main_shell.dart';
 
-// Imports relatifs (évite les soucis de nom de package)
+// Imports relatifs
 import 'features/apartments/screens/apartments_page.dart';
 import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/sign_up_screen.dart';
@@ -16,7 +19,19 @@ import 'features/authentication/screens/forgot_password_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const MyApp());
+  
+  // On remet le code de connexion, il est obligatoire pour l'upload
+  try {
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: "test_user@gmail.com",
+      password: "Test123456"
+    );
+    print("✅ Connexion de test réussie !");
+  } on FirebaseAuthException catch (e) {
+    print("🔥 Erreur de connexion de test: ${e.message}");
+  }
+  
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatefulWidget {
@@ -61,22 +76,29 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return ShadApp.custom(
+
+      theme: ShadThemeData(
       themeMode: ThemeMode.dark,
       darkTheme: ShadThemeData(
+
         brightness: Brightness.dark,
         colorScheme: const ShadSlateColorScheme.dark(),
       ),
       appBuilder: (context) {
-        return MaterialApp.router(
-          debugShowCheckedModeBanner: false,
+        return MaterialApp(
           theme: Theme.of(context),
-          builder: (context, child) => ShadAppBuilder(child: child!),
+          builder: (context, child) {
+            return ShadAppBuilder(child: child!);
+          },
+          home: const MainShell(),
+          debugShowCheckedModeBanner: false,
           routerConfig: _router,
         );
       },
     );
   }
 }
+
 
 /// Permet à GoRouter de se rafraîchir quand l'état Firebase Auth change
 class GoRouterRefreshStream extends ChangeNotifier {
