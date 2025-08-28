@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../../core/services/apartment_service.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../core/models/apartment.dart';
 import 'edit_apartment_page.dart';
 
@@ -10,9 +13,50 @@ class ApartmentsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = ApartmentService();
+    final auth = AuthService();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Apartments')),
+      appBar: AppBar(
+        title: const Text('Apartments'),
+        actions: [
+          IconButton(
+            tooltip: 'Déconnexion',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Se déconnecter ?'),
+                  content: const Text('Vous serez redirigé vers la page de connexion.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Annuler'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Se déconnecter'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (ok != true) return;
+
+              try {
+                await auth.signOut();
+                if (context.mounted) context.go('/login'); // nécessite go_router
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Impossible de se déconnecter. Réessayez.')),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
       body: StreamBuilder<List<Apartment>>(
         stream: service.streamAll(),
         builder: (context, snapshot) {
@@ -48,14 +92,21 @@ class ApartmentsPage extends StatelessWidget {
                         title: const Text('Supprimer ?'),
                         content: Text('Supprimer "${a.title}" ?'),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-                          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Supprimer')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Annuler'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Supprimer'),
+                          ),
                         ],
                       ),
                     );
                     if (ok == true) {
                       await service.delete(a.id);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Supprimé')));
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(const SnackBar(content: Text('Supprimé')));
                     }
                   },
                 ),
