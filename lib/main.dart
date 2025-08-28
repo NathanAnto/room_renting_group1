@@ -1,4 +1,5 @@
 // lib/main.dart
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import pour Firestore
 
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -20,6 +22,7 @@ import 'features/apartments/screens/edit_apartment_page.dart';
 import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/sign_up_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
+import 'features/profile/screens/create_profile_screen.dart'; // Import de l'écran de création
 
 // Settings / About
 import 'features/profile/screens/settings_screen.dart';
@@ -54,20 +57,39 @@ class _MyAppState extends State<MyApp> {
     _router = GoRouter(
       initialLocation: '/login',
       refreshListenable: GoRouterRefreshStream(authStream),
-      redirect: (context, state) {
-        final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-        final isAuthRoute = {
-          '/login',
-          '/signup',
-          '/forgot',
-        }.contains(state.matchedLocation);
+      // La redirection devient "async" pour appeler Firestore
+      redirect: (context, state) async {
+        final user = FirebaseAuth.instance.currentUser;
+        final isLoggedIn = user != null;
+        final isAuthRoute = {'/login', '/signup', '/forgot'}.contains(state.matchedLocation);
+        
+        // Si l'utilisateur n'est pas connecté, il ne peut accéder qu'aux routes d'authentification.
+        if (!isLoggedIn) {
+          return isAuthRoute ? null : '/login';
+        }
 
-        if (!isLoggedIn && !isAuthRoute) return '/login';
-        if (isLoggedIn && isAuthRoute) return '/';
+        // Si l'utilisateur est connecté, on vérifie si son profil existe
+        final profileDoc = await FirebaseFirestore.instance.collection('Profile').doc(user.uid).get();
+        final profileExists = profileDoc.exists;
+        final isCreatingProfile = state.matchedLocation == '/create-profile';
+
+        // Si le profil n'existe pas ET que l'utilisateur n'est pas déjà sur la page de création,
+        // on le force à y aller.
+        if (!profileExists && !isCreatingProfile) {
+          return '/create-profile';
+        }
+
+        // Si l'utilisateur est connecté ET qu'il a un profil (ou est en train d'en créer un),
+        // on l'empêche de retourner sur les pages d'authentification.
+        if (isAuthRoute) {
+          return '/';
+        }
+
+        // Aucune redirection n'est nécessaire dans les autres cas.
         return null;
       },
       routes: [
-        // Home
+        // Home (page d'accueil après connexion)
         GoRoute(path: '/', builder: (ctx, s) => const ApartmentsPage()),
 
         // Auth
@@ -75,11 +97,14 @@ class _MyAppState extends State<MyApp> {
         GoRoute(path: '/signup', builder: (ctx, s) => const SignUpScreen()),
         GoRoute(path: '/forgot', builder: (ctx, s) => const ForgotPasswordScreen()),
 
-        // Settings & About (en supposant des routes statiques dans les écrans)
+        // Route pour la création de profil
+        GoRoute(path: '/create-profile', builder: (ctx, s) => const CreateProfileScreen()),
+
+        // Settings & About
         GoRoute(path: SettingsScreen.route, builder: (ctx, s) => const SettingsScreen()),
         GoRoute(path: AboutScreen.route, builder: (ctx, s) => const AboutScreen()),
 
-        // Edit apartment (ouvrir via context.push('/edit-apartment', extra: Apartment?))
+        // Edit apartment
         GoRoute(
           path: '/edit-apartment',
           builder: (ctx, s) {
@@ -89,7 +114,7 @@ class _MyAppState extends State<MyApp> {
         ),
       ],
       errorBuilder: (context, state) => Scaffold(
-        appBar: AppBar(title: const Text('Not found')),
+        appBar: AppBar(title: const Text('Page Introuvable')),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -109,22 +134,20 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    // Matérialise l’appli avec le Router et injecte le thème shadcn_ui
     return MaterialApp.router(
       title: 'Room Renting',
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
       builder: (context, child) {
-        // Fournit le thème shadcn_ui et ses utilitaires au dessous
-      return ShadApp(
-        theme: ShadThemeData(
-          brightness: Brightness.dark,
-          colorScheme: ShadSlateColorScheme.dark(),
-        ),
-        builder: (context, _) {
-          return ShadAppBuilder(child: child!);
-        },
-      );
+        return ShadApp(
+          theme: ShadThemeData(
+            brightness: Brightness.dark,
+            colorScheme: const ShadSlateColorScheme.dark(),
+          ),
+          builder: (context, _) {
+            return ShadAppBuilder(child: child!);
+          },
+        );
       },
     );
   }
