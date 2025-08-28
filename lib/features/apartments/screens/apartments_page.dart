@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -19,6 +18,14 @@ class ApartmentsPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Apartments'),
         actions: [
+          // Bouton Settings
+          IconButton(
+            tooltip: 'Paramètres',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.push('/settings'),
+          ),
+
+          // Bouton Déconnexion
           IconButton(
             tooltip: 'Déconnexion',
             icon: const Icon(Icons.logout),
@@ -27,7 +34,8 @@ class ApartmentsPage extends StatelessWidget {
                 context: context,
                 builder: (_) => AlertDialog(
                   title: const Text('Se déconnecter ?'),
-                  content: const Text('Vous serez redirigé vers la page de connexion.'),
+                  content: const Text(
+                      'Vous serez redirigé vers la page de connexion.'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
@@ -45,11 +53,12 @@ class ApartmentsPage extends StatelessWidget {
 
               try {
                 await auth.signOut();
-                if (context.mounted) context.go('/login'); // nécessite go_router
+                if (context.mounted) context.go('/login'); // redirige login
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Impossible de se déconnecter. Réessayez.')),
+                    const SnackBar(
+                        content: Text('Impossible de se déconnecter. Réessayez.')),
                   );
                 }
               }
@@ -79,9 +88,11 @@ class ApartmentsPage extends StatelessWidget {
                 title: Text('${a.title} • ${a.city}'),
                 subtitle: Text('CHF ${a.price} / mois'),
                 onTap: () async {
-                  await Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => EditApartmentPage(apartment: a),
-                  ));
+                  // ouvre l’éditeur avec go_router
+                  await context.push(
+                    '/edit-apartment',
+                    extra: a,
+                  );
                 },
                 trailing: IconButton(
                   icon: const Icon(Icons.delete_outline),
@@ -105,8 +116,9 @@ class ApartmentsPage extends StatelessWidget {
                     );
                     if (ok == true) {
                       await service.delete(a.id);
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(const SnackBar(content: Text('Supprimé')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Supprimé')),
+                      );
                     }
                   },
                 ),
@@ -117,9 +129,7 @@ class ApartmentsPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          await Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => const EditApartmentPage(),
-          ));
+          await context.push('/edit-apartment');
         },
         label: const Text('Ajouter'),
         icon: const Icon(Icons.add),
