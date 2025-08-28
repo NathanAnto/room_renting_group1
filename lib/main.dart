@@ -1,5 +1,12 @@
 
 import 'package:flutter/material.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'features/listings/screens/create_listing_screen.dart';
+import 'firebase_options.dart';
+import 'features/listings/screens/listings_screen.dart'; // Import the new screen
+
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -110,8 +117,10 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ShadApp.custom(
+    return ShadApp.custom
       theme: ShadThemeData(
+      themeMode: ThemeMode.dark,
+      darkTheme: ShadThemeData(
         brightness: Brightness.dark,
         colorScheme: ShadSlateColorScheme.dark(),
       ),
