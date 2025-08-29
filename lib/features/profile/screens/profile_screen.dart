@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:room_renting_group1/core/models/user_model.dart'; // Import pour UserRole
 import 'package:room_renting_group1/features/profile/state/profile_providers.dart';
@@ -16,6 +17,16 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsyncValue = ref.watch(userProfileProvider);
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mon profil'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Paramètres',
+            onPressed: () => context.push('/settings'),
+          ),
+        ],
+      ),
       body: profileAsyncValue.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Erreur: $err')),
