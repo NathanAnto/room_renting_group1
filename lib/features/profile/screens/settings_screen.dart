@@ -15,7 +15,6 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = ShadTheme.of(context);
     final profileAsync = ref.watch(userProfileProvider);
 
     return Scaffold(
@@ -24,32 +23,11 @@ class SettingsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Erreur: $e')),
         data: (user) {
-          // On peut afficher la page même si user == null (compte nouvellement créé),
-          // mais la section Admin sera cachée.
           final isAdmin = _isAdmin(user);
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // --- Account ---
-              ShadCard(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionTitle(context, 'Account'),
-                    _tile(
-                      context: context,
-                      icon: Icons.person_outline,
-                      title: 'Profil',
-                      subtitle: user?.displayName ?? 'Voir/éditer vos informations',
-                      onTap: () => context.push('/profile'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
               // --- General ---
               ShadCard(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -159,12 +137,7 @@ class SettingsScreen extends ConsumerWidget {
 
   bool _isAdmin(UserModel? user) {
     if (user == null) return false;
-
-    // 1) Cas enum UserRole.admin
     if (user.role == UserRole.admin) return true;
-
-    // 2) Sécurité : si pour une raison X le rôle est stocké sous forme de string directe
-    // (ex. mapping incomplet), on tolère la valeur brute 'admin'
     final raw = user.role.name.toLowerCase();
     return raw == 'admin';
   }
