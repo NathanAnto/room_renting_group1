@@ -47,8 +47,10 @@ class SingleListingScreen extends StatelessWidget {
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                        errorWidget: (context, url, error) => const Icon(Icons.error),
+                        placeholder: (context, url) =>
+                            const Center(child: CircularProgressIndicator()),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.error),
                       );
                     },
                   );
@@ -59,7 +61,11 @@ class SingleListingScreen extends StatelessWidget {
                 height: 250,
                 color: theme.colorScheme.primary,
                 child: const Center(
-                  child: Icon(Icons.image_not_supported, size: 80, color: Colors.white),
+                  child: Icon(
+                    Icons.image_not_supported,
+                    size: 80,
+                    color: Colors.white,
+                  ),
                 ),
               ),
 
@@ -84,7 +90,11 @@ class SingleListingScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Icon(Icons.payments, color: theme.colorScheme.primary, size: 20),
+                      Icon(
+                        Icons.payments,
+                        color: theme.colorScheme.primary,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'CHF ${listing.rentPerMonth.toStringAsFixed(2)} / month',
@@ -94,7 +104,11 @@ class SingleListingScreen extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      Icon(Icons.square_foot, color: theme.colorScheme.primary, size: 20),
+                      Icon(
+                        Icons.square_foot,
+                        color: theme.colorScheme.primary,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text('${listing.surface.toStringAsFixed(0)} m²'),
                     ],
@@ -102,25 +116,62 @@ class SingleListingScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   Text(
                     'Description',
-                    style: theme.textTheme.h4.copyWith(color: theme.colorScheme.primary),
+                    style: theme.textTheme.h4.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(listing.description),
                   const SizedBox(height: 24),
+
+                  Text(
+                    'Distance to Public Transport (km)',
+                    style: theme.textTheme.h4.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(listing.distanceToPublicTransportKm.toStringAsFixed(2)),
+                  const SizedBox(height: 24),
+
+                  Text(
+                    'Proximity to HES-SO (km)',
+                    style: theme.textTheme.h4.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(listing.proximHessoKm.toStringAsFixed(2)),
+                  const SizedBox(height: 24),
+
+                  Text(
+                    'Number of rooms',
+                    style: theme.textTheme.h4.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(listing.numRooms.toString()),
+                  const SizedBox(height: 24),
                   Text(
                     'Amenities',
-                    style: theme.textTheme.h4.copyWith(color: theme.colorScheme.primary),
+                    style: theme.textTheme.h4.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8.0,
                     runSpacing: 8.0,
                     children: listing.amenities.entries
-                        .where((entry) => entry.value is bool && entry.value == true)
-                        .map((entry) => ShadBadge(child: Text(entry.key.replaceAll('_', ' '))))
-                        .followedBy(listing.amenities.entries
-                        .where((entry) => entry.value is num)
-                        .map((entry) => ShadBadge(child: Text('${entry.key.replaceAll('_', ' ')}: ${entry.value}'))))
+                        .where((entry) => entry.value == true)
+                        .map(
+                          (entry) => ShadBadge(
+                            child: Text(
+                              Listing.amenitiesLabels[entry.key].toString(),
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                   const SizedBox(height: 48),
