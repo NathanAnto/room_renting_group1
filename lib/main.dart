@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:room_renting_group1/features/dashboard/screens/dashboard_screen.dart';
 import 'package:room_renting_group1/features/listings/screens/listings_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -85,6 +86,10 @@ class _MyAppState extends State<MyApp> {
             return MainShell(child: child);
           },
           routes: [
+            GoRoute(
+              path: '/dashboard',
+              builder: (ctx, s) => const DashboardScreen(),
+            ),
             GoRoute(
               path: '/',
               builder: (ctx, s) => const ListingsScreen(),
