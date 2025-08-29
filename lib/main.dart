@@ -28,6 +28,8 @@ import 'features/profile/screens/create_profile_screen.dart';
 import 'features/apartments/screens/edit_apartment_page.dart';
 import 'features/profile/screens/settings_screen.dart';
 import 'features/profile/screens/about_screens.dart';
+// --- Admin ---
+import 'features/admin/screens/admin_users_screen.dart';
 
 // --- Modèles ---
 import 'core/models/apartment.dart';
@@ -105,6 +107,7 @@ class _MyAppState extends State<MyApp> {
         // --- AUTRES ROUTES PLEIN ÉCRAN ---
         GoRoute(path: SettingsScreen.route, builder: (ctx, s) => const SettingsScreen()),
         GoRoute(path: AboutScreen.route, builder: (ctx, s) => const AboutScreen()),
+        GoRoute(path: '/admin/users', builder: (ctx, s) => const AdminUsersScreen()),
         GoRoute(
           path: '/edit-apartment',
           builder: (ctx, s) {
