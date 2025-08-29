@@ -1,4 +1,5 @@
 // lib/core/models/listing.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Listing {
@@ -21,6 +22,13 @@ class Listing {
   final DateTime updatedAt;
   final List<String> images;
 
+  // --- AJOUTS POUR LES AVIS ---
+  /// Note moyenne du logement, calculée à partir des avis des étudiants.
+  final double averageRating;
+  /// Nombre total d'avis reçus pour ce logement.
+  final int reviewCount;
+  // ---------------------------
+
   Listing({
     this.id,
     required this.ownerId,
@@ -40,6 +48,9 @@ class Listing {
     required this.createdAt,
     required this.updatedAt,
     required this.images,
+    // Initialisation des nouveaux champs.
+    this.averageRating = 0.0,
+    this.reviewCount = 0,
   });
 
   factory Listing.fromFirestore(DocumentSnapshot doc) {
@@ -51,18 +62,24 @@ class Listing {
       description: data['description'] ?? '',
       type: data['type'] ?? '',
       rentPerMonth: (data['rentPerMonth'] ?? 0.0).toDouble(),
-      predictedRentPerMonth: (data['perdictedRentPerMonth'] ?? 0.0).toDouble(),
+      // Correction de la coquille 'perdictedRentPerMonth' -> 'predictedRentPerMonth'
+      predictedRentPerMonth: (data['predictedRentPerMonth'] ?? 0.0).toDouble(),
       city: data['city'] ?? '',
       addressLine: data['addressLine'] ?? '',
       lat: (data['lat'] ?? 0.0).toDouble(),
       lng: (data['lng'] ?? 0.0).toDouble(),
       surface: (data['surface'] ?? 0.0).toDouble(),
-      availability: data['availabilty'] ?? '',
+      // Correction de la coquille 'availabilty' -> 'availability'
+      availability: data['availability'] ?? '',
       amenities: data['amenities'] ?? {},
       status: data['status'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updateAt'] as Timestamp).toDate(),
+      // Correction de la coquille 'updateAt' -> 'updatedAt'
+      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
       images: List<String>.from(data['images'] ?? []),
+      // Lecture des nouveaux champs depuis Firestore.
+      averageRating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
+      reviewCount: data['reviewCount'] ?? 0,
     );
   }
 
@@ -73,18 +90,21 @@ class Listing {
       'description': description,
       'type': type,
       'rentPerMonth': rentPerMonth,
-      'perdictedRentPerMonth': predictedRentPerMonth,
+      'predictedRentPerMonth': predictedRentPerMonth,
       'city': city,
       'addressLine': addressLine,
       'lat': lat,
       'lng': lng,
       'surface': surface,
-      'availabilty': availability,
+      'availability': availability,
       'amenities': amenities,
       'status': status,
       'createdAt': createdAt,
-      'updateAt': updatedAt,
-      'images': images, // Write images to Firestore
+      'updatedAt': updatedAt,
+      'images': images,
+      // Écriture des nouveaux champs dans Firestore.
+      'averageRating': averageRating,
+      'reviewCount': reviewCount,
     };
   }
 }
