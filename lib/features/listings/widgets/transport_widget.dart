@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/listing.dart';
-import '../../../core/models/transport.dart'; // contient ItinerariesUI + parseItinerariesUI
+import '../../../core/models/transport.dart'; // ItinerariesUI + parseItinerariesUI
 import '../../../core/utils/transport_api.dart' as transportApi;
+
+// NEW: imports pour récupérer l'user & son profil
+import '../../../core/services/auth_service.dart';
+import '../../../core/services/profile_service.dart';
+import '../../../core/models/user_model.dart'; // enum UserRole
 
 /// Mapping par défaut nom d’école -> [lat, lng]
 const Map<String, List<double>> kDefaultSchoolCoords = {
@@ -12,12 +17,10 @@ const Map<String, List<double>> kDefaultSchoolCoords = {
   "Haute Ecole et Ecole Supérieure de Travail Social (HESTS)": [46.293050, 7.536450],
 };
 
-/// Widget autonome : affiche les itinéraires Listing -> École sélectionnée
-/// Affiché uniquement si `isStudentViewer == true`.
+/// Widget autonome : affiche les itinéraires Listing -> école de l'utilisateur
+/// (déduite du profil). N'affiche rien si l'utilisateur n'est pas étudiant.
 class StudentListingItinerary extends StatefulWidget {
   final Listing listing;
-  final String? selectedSchoolName;
-  final bool isStudentViewer;
 
   /// Optionnel: surcharger le mapping des écoles si besoin
   final Map<String, List<double>> schoolCoords;
@@ -38,8 +41,6 @@ class StudentListingItinerary extends StatefulWidget {
   const StudentListingItinerary({
     super.key,
     required this.listing,
-    required this.selectedSchoolName,
-    required this.isStudentViewer,
     this.schoolCoords = kDefaultSchoolCoords,
     this.maxResults = 3,
     this.showLegs = true,
@@ -55,6 +56,12 @@ class StudentListingItinerary extends StatefulWidget {
 class _StudentListingItineraryState extends State<StudentListingItinerary> {
   late Future<ItinerariesUI> _future;
 
+  // Contexte résolu depuis le profil
+  String? _resolvedSchoolName;
+  bool _isStudent = false;
+  bool _noUser = false;   // pas connecté
+  bool _noSchool = false; // profil sans école
+
   @override
   void initState() {
     super.initState();
@@ -64,8 +71,7 @@ class _StudentListingItineraryState extends State<StudentListingItinerary> {
   @override
   void didUpdateWidget(covariant StudentListingItinerary oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedSchoolName != widget.selectedSchoolName ||
-        oldWidget.listing.id != widget.listing.id) {
+    if (oldWidget.listing.id != widget.listing.id) {
       _kickoff();
     }
   }
@@ -75,52 +81,50 @@ class _StudentListingItineraryState extends State<StudentListingItinerary> {
   }
 
   Future<ItinerariesUI> _load() async {
-    if (!widget.isStudentViewer) {
-      // Par sécurité, même si le parent ne devrait pas nous monter.
-      return ItinerariesUI(
-        fromLabel: '',
-        toLabel: '',
-        windowStart: DateTime.now(),
-        windowEnd: DateTime.now(),
-        itineraries: const [],
-      );
+    // Reset flags à chaque chargement
+    _resolvedSchoolName = null;
+    _isStudent = false;
+    _noUser = false;
+    _noSchool = false;
+
+    // 1) Récupérer l'utilisateur courant
+    final uid = AuthService().currentUser?.uid;
+    if (uid == null) {
+      _noUser = true;
+      return _emptyUI();
     }
 
-    final schoolName = widget.selectedSchoolName?.trim();
-    if (schoolName == null || schoolName.isEmpty) {
-      // Pas d’école sélectionnée → UI affichera un état "sélectionnez une école".
-      return ItinerariesUI(
-        fromLabel: '',
-        toLabel: '',
-        windowStart: DateTime.now(),
-        windowEnd: DateTime.now(),
-        itineraries: const [],
-      );
+    // 2) Charger le profil (role + school)
+    final profile = await ProfileService().getUserProfile(uid);
+    _isStudent = profile?.role == UserRole.student;
+    if (!_isStudent) {
+      // Non-étudiant → pas d'affichage
+      return _emptyUI();
     }
 
-    final coords = widget.schoolCoords[schoolName];
+    _resolvedSchoolName = profile?.school?.trim();
+    if (_resolvedSchoolName == null || _resolvedSchoolName!.isEmpty) {
+      _noSchool = true;
+      return _emptyUI();
+    }
+
+    // 3) Coords école
+    final coords = widget.schoolCoords[_resolvedSchoolName!];
     if (coords == null || coords.length != 2) {
-      throw Exception("Coordonnées inconnues pour l'école: $schoolName");
+      throw Exception("Coordonnées inconnues pour l'école: $_resolvedSchoolName");
     }
 
-    final fromLat = widget.listing.lat;
-    final fromLon = widget.listing.lng;
-    final toLat = coords[0];
-    final toLon = coords[1];
-
-    // 👉 Appel direct à TA fonction depuis transport_api.dart
+    // 4) Appel API transport
     final raw = await transportApi.getItinerariesNext2hByCoords(
-      fromLat: fromLat,
-      fromLon: fromLon,
-      toLat: toLat,
-      toLon: toLon,
+      fromLat: widget.listing.lat,
+      fromLon: widget.listing.lng,
+      toLat: coords[0],
+      toLon: coords[1],
       pageLimitSafety: widget.pageLimitSafety,
       pageSize: widget.pageSize,
     );
 
     final parsed = parseItinerariesUI(raw);
-
-    // Limite à maxResults côté UI, sans muter l’original.
     final limited = parsed.itineraries.take(widget.maxResults).toList();
 
     return ItinerariesUI(
@@ -132,43 +136,60 @@ class _StudentListingItineraryState extends State<StudentListingItinerary> {
     );
   }
 
+  ItinerariesUI _emptyUI() => ItinerariesUI(
+        fromLabel: '',
+        toLabel: '',
+        windowStart: DateTime.now(),
+        windowEnd: DateTime.now(),
+        itineraries: const [],
+      );
+
   @override
   Widget build(BuildContext context) {
-    if (!widget.isStudentViewer) {
-      return const SizedBox.shrink();
-    }
-
     return Padding(
       padding: widget.padding,
       child: FutureBuilder<ItinerariesUI>(
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return _SkeletonCard(schoolName: widget.selectedSchoolName);
+            return _SkeletonCard(schoolName: _resolvedSchoolName);
           }
           if (snap.hasError) {
             return _ErrorCard(
-              schoolName: widget.selectedSchoolName,
+              schoolName: _resolvedSchoolName,
               error: snap.error,
               onRetry: () => setState(_kickoff),
             );
           }
-          final data = snap.data!;
-          if (widget.selectedSchoolName == null ||
-              widget.selectedSchoolName!.trim().isEmpty) {
+
+          // Garde-fous post-chargement
+          if (!_isStudent) {
+            // Même logique qu'avant: si pas étudiant → n'affiche rien
+            return const SizedBox.shrink();
+          }
+          if (_noUser) {
             return const _HintCard(
-              title: "Sélectionnez une école",
-              subtitle: "Choisissez votre campus pour voir les trajets depuis ce logement.",
+              title: "Connectez-vous pour voir les trajets",
+              subtitle: "Identifiez-vous pour récupérer votre école et les itinéraires.",
             );
           }
+          if (_noSchool || _resolvedSchoolName == null || _resolvedSchoolName!.isEmpty) {
+            return const _HintCard(
+              title: "Ajoutez votre école",
+              subtitle: "Renseignez votre campus dans le profil pour voir les trajets.",
+            );
+          }
+
+          final data = snap.data!;
           if (data.itineraries.isEmpty) {
             return const _HintCard(
               title: "Aucune connexion trouvée",
               subtitle: "Essayez un autre créneau ou vérifiez la sélection d’école.",
             );
           }
+
           return _ItinerariesCard(
-            schoolName: widget.selectedSchoolName!,
+            schoolName: _resolvedSchoolName!,
             ui: data,
             showLegs: widget.showLegs,
           );
@@ -218,7 +239,7 @@ class _ItinerariesCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // Liste des itinéraires (non-scrollable ici, pour s'intégrer dans une page scrollable)
+            // Liste des itinéraires (non-scrollable ici)
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -268,6 +289,7 @@ class _ItineraryTile extends StatelessWidget {
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: 6),
+
         // Produits
         Wrap(
           spacing: 6,
@@ -279,6 +301,7 @@ class _ItineraryTile extends StatelessWidget {
                   ))
               .toList(),
         ),
+
         if (showLegs) ...[
           const SizedBox(height: 8),
           Column(

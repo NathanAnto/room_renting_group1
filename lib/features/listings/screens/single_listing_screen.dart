@@ -5,6 +5,8 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/models/listing.dart';
+import '../widgets/transport_widget.dart';
+
 
 class SingleListingScreen extends StatelessWidget {
   final Listing listing;
@@ -136,6 +138,8 @@ class SingleListingScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            StudentListingItinerary(listing: listing),
           ],
         ),
       ),
