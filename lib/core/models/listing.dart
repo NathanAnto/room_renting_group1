@@ -100,6 +100,9 @@ class Listing {
       'lat': lat,
       'lng': lng,
       'surface': surface,
+      'dist_public_transport_km': distanceToPublicTransportKm,
+      'proxim_hesso_km': proximHessoKm,
+      'num_rooms': numRooms,
       'availabilty': availability,
       'amenities': amenities,
       'status': status,
@@ -110,11 +113,6 @@ class Listing {
   }
 
   static const amenitiesLabels = {
-    "type": "Type",
-    "surface_m2": "Surface (m²)",
-    "dist_public_transport_km": "Distance to Public Transport (km)",
-    "proxim_hesso_km": "Proximity to HES-SO (km)",
-    "num_rooms": "Number of Rooms",
     "is_furnished": "Furnished",
     "wifi_incl": "WiFi Included",
     "charges_incl": "Charges Included",
