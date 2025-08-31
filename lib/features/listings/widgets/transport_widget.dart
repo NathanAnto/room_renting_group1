@@ -309,9 +309,7 @@ class _ItineraryTile extends StatelessWidget {
               final isWalk = l.isWalk;
               final icon = isWalk ? Icons.directions_walk : Icons.train;
               final subtitle = isWalk
-                  ? (l.walkDuration == null
-                      ? "Marche"
-                      : "Marche (${l.walkDuration!.inMinutes} min)")
+                  ? "Marche"
                   : [
                       if ((l.lineLabel ?? '').isNotEmpty) l.lineLabel,
                       if ((l.direction ?? '').isNotEmpty) '→ ${l.direction}',
