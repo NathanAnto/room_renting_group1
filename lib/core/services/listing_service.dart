@@ -30,6 +30,46 @@ class ListingService {
     }
   }
 
+  Stream<List<Listing>> getFilteredListings(
+      {String? city,
+      String? type,
+      double? minRent,
+      double? maxRent,
+      double? maxPublicTransportDistance,
+      double? maxProximHessoDistance,
+      List<String>? amenities,
+      List<String>? listingIds}) {
+    // Start with the base collection query
+    Query<Map<String, dynamic>> query = _db.collection(collectionName);
+
+    // Apply filters conditionally
+    if (city != null && city.isNotEmpty) {
+      query = query.where('city', isEqualTo: city);
+    }
+    if (type != null && type.isNotEmpty) {
+      query = query.where('type', isEqualTo: type);
+    }
+    if (minRent != null) {
+      query = query.where('rentPerMonth', isGreaterThanOrEqualTo: minRent);
+    }
+    if (maxRent != null) {
+      query = query.where('rentPerMonth', isLessThanOrEqualTo: maxRent);
+    }
+    if (maxPublicTransportDistance != null) {
+      query = query.where('dist_public_transport_km', isLessThanOrEqualTo: maxPublicTransportDistance);
+    }
+    if (maxProximHessoDistance != null) {
+      query = query.where('proxim_hesso_km', isLessThanOrEqualTo: maxProximHessoDistance);
+    }
+    if (amenities != null && amenities.isNotEmpty) {
+       query = query.where('amenities', arrayContainsAny: amenities);
+    }
+    // TODO: Add date range filtering
+
+    return query.snapshots().map((snapshot) =>
+        snapshot.docs.map((doc) => Listing.fromFirestore(doc)).toList());
+  }
+
   // Get all listings as a stream
   Stream<List<Listing>> getListings() {
     return _db.collection(collectionName).snapshots().map((snapshot) =>

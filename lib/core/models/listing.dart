@@ -14,8 +14,11 @@ class Listing {
   final double lat;
   final double lng;
   final double surface;
+  final double distanceToPublicTransportKm;
+  final double proximHessoKm;
+  final int numRooms;
   final String availability;
-  final Map<String, dynamic> amenities;
+  final Map<String, bool> amenities;
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -34,6 +37,9 @@ class Listing {
     required this.lat,
     required this.lng,
     required this.surface,
+    required this.distanceToPublicTransportKm,
+    required this.proximHessoKm,
+    required this.numRooms,
     required this.availability,
     required this.amenities,
     required this.status,
@@ -51,17 +57,32 @@ class Listing {
       description: data['description'] ?? '',
       type: data['type'] ?? '',
       rentPerMonth: (data['rentPerMonth'] ?? 0.0).toDouble(),
-      predictedRentPerMonth: (data['perdictedRentPerMonth'] ?? 0.0).toDouble(),
+      predictedRentPerMonth: (data['predictedRentPerMonth'] ?? 0.0).toDouble(),
       city: data['city'] ?? '',
       addressLine: data['addressLine'] ?? '',
       lat: (data['lat'] ?? 0.0).toDouble(),
       lng: (data['lng'] ?? 0.0).toDouble(),
       surface: (data['surface'] ?? 0.0).toDouble(),
-      availability: data['availabilty'] ?? '',
-      amenities: data['amenities'] ?? {},
+      distanceToPublicTransportKm: (data['dist_public_transport_km'] ?? 0.0)
+          .toDouble(),
+      proximHessoKm: (data['proxim_hesso_km'] ?? 0.0).toDouble(),
+      numRooms: (data['num_rooms'] ?? 0).toInt(),
+      availability: data['availability'] ?? '',
+      amenities:
+          (data['amenities'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(
+              key,
+              value is bool ? value : value == 1, // conversion int->bool
+            ),
+          ) ??
+          {},
       status: data['status'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updateAt'] as Timestamp).toDate(),
+      createdAt: (data['createdAt'] is Timestamp)
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      updatedAt: (data['updatedAt'] is Timestamp)
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
       images: List<String>.from(data['images'] ?? []),
     );
   }
@@ -79,6 +100,9 @@ class Listing {
       'lat': lat,
       'lng': lng,
       'surface': surface,
+      'dist_public_transport_km': distanceToPublicTransportKm,
+      'proxim_hesso_km': proximHessoKm,
+      'num_rooms': numRooms,
       'availabilty': availability,
       'amenities': amenities,
       'status': status,
@@ -87,4 +111,11 @@ class Listing {
       'images': images, // Write images to Firestore
     };
   }
+
+  static const amenitiesLabels = {
+    "is_furnished": "Furnished",
+    "wifi_incl": "WiFi Included",
+    "charges_incl": "Charges Included",
+    "car_park": "Car Park",
+  };
 }

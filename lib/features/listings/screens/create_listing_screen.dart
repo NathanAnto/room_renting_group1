@@ -70,15 +70,7 @@ const listingTypes = {'apartment': 'Apartment', 'room': 'Room'};
 
 const availabilityOptions = {'published': 'Published', 'archived': 'Archived'};
 
-const valueAmenities = {
-  "type": "Type",
-  "surface_m2": "Surface (m²)",
-  "dist_public_transport_km": "Distance to Public Transport (km)",
-  "proxim_hesso_km": "Proximity to HES-SO (km)",
-  "num_rooms": "Number of Rooms",
-};
-
-const boolAmenities = {
+const amenities = {
   "is_furnished": "Furnished",
   "wifi_incl": "WiFi Included",
   "charges_incl": "Charges Included",
@@ -121,10 +113,12 @@ class CreateListingScreen extends HookWidget {
     final rentController = useTextEditingController();
     final cityController = useTextEditingController();
     final surfaceController = useTextEditingController();
+    final distanceToPublicTransportController = useTextEditingController();
+    final proximHessoController = useTextEditingController();
+    final numRoomsController = useTextEditingController();
 
     final selectedType = useState<String?>(null);
     final selectedAvailability = useState<String?>(null);
-    final amenityValues = useState<Map<String, dynamic>>({});
     final selectedAmenities = useState<Map<String, bool>>({});
     final selectedFiles = useState<List<PlatformFile>>([]);
     final addressController = useTextEditingController();
@@ -180,11 +174,16 @@ class CreateListingScreen extends HookWidget {
                       lat: lat.value,
                       lng: lng.value,
                       surface: double.tryParse(surfaceController.text) ?? 0.0,
+                      distanceToPublicTransportKm:
+                          double.tryParse(
+                            distanceToPublicTransportController.text,
+                          ) ??
+                          0.0,
+                      proximHessoKm:
+                          double.tryParse(proximHessoController.text) ?? 0.0,
+                      numRooms: int.tryParse(numRoomsController.text) ?? 0,
                       availability: selectedAvailability.value!,
-                      amenities: {
-                        ...amenityValues.value,
-                        ...selectedAmenities.value,
-                      },
+                      amenities: selectedAmenities.value,
                       status: 'open',
                       createdAt: DateTime.now(),
                       updatedAt: DateTime.now(),
@@ -198,8 +197,10 @@ class CreateListingScreen extends HookWidget {
                     cityController.clear();
                     surfaceController.clear();
                     selectedType.value = null;
+                    distanceToPublicTransportController.clear();
+                    proximHessoController.clear();
+                    numRoomsController.clear();
                     selectedAvailability.value = null;
-                    amenityValues.value = {};
                     selectedAmenities.value = {};
                     selectedFiles.value = [];
                     addressController.clear();
@@ -329,47 +330,31 @@ class CreateListingScreen extends HookWidget {
                   const Text('Distance to Public Transport (km)'),
                   const SizedBox(height: 6),
                   ShadInput(
+                    controller: distanceToPublicTransportController,
                     placeholder: const Text('e.g., 0.5'),
                     keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      amenityValues.value = {
-                        ...amenityValues.value,
-                        'dist_public_transport_km':
-                            double.tryParse(value) ?? 0.0,
-                      };
-                    },
                   ),
                   const SizedBox(height: 16),
                   const Text('Proximity to HES-SO (km)'),
                   const SizedBox(height: 6),
                   ShadInput(
+                    controller: proximHessoController,
                     placeholder: const Text('e.g., 1.2'),
                     keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      amenityValues.value = {
-                        ...amenityValues.value,
-                        'proxim_hesso_km': double.tryParse(value) ?? 0.0,
-                      };
-                    },
                   ),
                   const SizedBox(height: 16),
                   const Text('Number of Rooms'),
                   const SizedBox(height: 6),
                   ShadInput(
+                    controller: numRoomsController,
                     placeholder: const Text('e.g., 3'),
                     keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      amenityValues.value = {
-                        ...amenityValues.value,
-                        'num_rooms': int.tryParse(value) ?? 0,
-                      };
-                    },
                   ),
                   const SizedBox(height: 16),
 
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: boolAmenities.entries.map((amenity) {
+                    children: amenities.entries.map((amenity) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         child: Row(
