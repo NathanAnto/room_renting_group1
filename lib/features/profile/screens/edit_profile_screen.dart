@@ -24,6 +24,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     'Haute Ecole et Ecole Supérieure de Travail Social (HESTS)',
   ];
 
+  bool get _isStudent => widget.user.role == UserRole.student;
+
   late final TextEditingController _countryController;
   late final TextEditingController _emailController;
   late final TextEditingController _displayNameController;
@@ -39,7 +41,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _displayNameController = TextEditingController(text: widget.user.displayName);
     _phoneController = TextEditingController(text: widget.user.phone);
 
-    if (widget.user.school != null && _schools.contains(widget.user.school)) {
+    // Pré-remplir l'école uniquement si l'utilisateur est étudiant
+    if (_isStudent && widget.user.school != null && _schools.contains(widget.user.school)) {
       _selectedSchool = widget.user.school;
     }
   }
@@ -65,11 +68,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         throw Exception("Utilisateur non trouvé, impossible de sauvegarder.");
       }
 
-      // On applique les modifications sur cette version fraîche des données
+      // Si ce n'est pas un étudiant, l'école est ignorée/effacée
+      final schoolToSave = _isStudent ? _selectedSchool : null;
+
       final updatedUser = currentUserState.copyWith(
         displayName: _displayNameController.text,
         phone: _phoneController.text,
-        school: _selectedSchool,
+        school: schoolToSave,
         email: _emailController.text,
         country: _countryController.text,
       );
@@ -94,7 +99,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
-   Future<void> _pickAndUploadImage() async {
+  Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile == null) return;
@@ -102,13 +107,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _isLoading = true);
     try {
       final imageData = await pickedFile.readAsBytes();
-      
       final profileService = ref.read(profileServiceProvider);
       await profileService.uploadProfilePicture(widget.user.id, imageData);
-      
-      // ✅ SOLUTION : Invalidez le provider ici !
-      // Cela force Riverpod à recharger les données du profil depuis Firestore.
-      // La prochaine lecture de `userProfileProvider` aura la nouvelle `photoUrl`.
+
       ref.invalidate(userProfileProvider);
 
       if (mounted) {
@@ -117,7 +118,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         );
       }
     } catch (e) {
-       if (mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Erreur lors de l'upload : $e")),
         );
@@ -278,21 +279,26 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ),
               const SizedBox(height: 16),
 
-              Text('École / Université', style: ShadTheme.of(context).textTheme.small),
-              const SizedBox(height: 8),
-              ShadSelect<String>(
-                initialValue: _selectedSchool,
-                placeholder: const Text('Sélectionnez une école'),
-                options: _schools.map((school) => ShadOption(value: school, child: Text(school))).toList(),
-                selectedOptionBuilder: (context, value) => Text(value),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedSchool = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              
+              // ------------------------------------------------------------
+              // Champ "École / Université" visible uniquement pour STUDENT
+              // ------------------------------------------------------------
+              if (_isStudent) ...[
+                Text('École / Université', style: ShadTheme.of(context).textTheme.small),
+                const SizedBox(height: 8),
+                ShadSelect<String>(
+                  initialValue: _selectedSchool,
+                  placeholder: const Text('Sélectionnez une école'),
+                  options: _schools.map((school) => ShadOption(value: school, child: Text(school))).toList(),
+                  selectedOptionBuilder: (context, value) => Text(value),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedSchool = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+
               Text("Pays", style: ShadTheme.of(context).textTheme.small),
               const SizedBox(height: 8),
               GestureDetector(

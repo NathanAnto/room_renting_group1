@@ -18,14 +18,19 @@ class MainShell extends StatelessWidget {
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Logements',
+            icon: Icon(Icons.dashboard_outlined),
+            activeIcon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.explore_outlined),
+            activeIcon: Icon(Icons.explore),
+            label: 'Explore',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_circle_outlined),
             activeIcon: Icon(Icons.account_circle),
-            label: 'Profil',
+            label: 'Profile',
           ),
         ],
         // Calcule l'index actuel en fonction de la route
@@ -39,20 +44,30 @@ class MainShell extends StatelessWidget {
   // Fonction pour déterminer quel onglet est actif en fonction de l'URL
   int _calculateSelectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/profile')) {
+
+    if (location.startsWith('/dashboard')) {
+      return 0;
+    }
+    if (location == '/') {
       return 1;
     }
+    if (location.startsWith('/profile')) {
+      return 2;
+    }
     // Par défaut, c'est l'accueil
-    return 0;
+    return 1;
   }
  
   // Fonction pour naviguer lorsque l'on clique sur un onglet
   void _onItemTapped(int index, BuildContext context) {
     switch (index) {
       case 0:
-        context.go('/');
+        context.go('/dashboard');
         break;
       case 1:
+        context.go('/');
+        break;
+      case 2:
         context.go('/profile');
         break;
     }
