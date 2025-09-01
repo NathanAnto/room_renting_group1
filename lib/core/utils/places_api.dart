@@ -25,3 +25,7 @@ Future<void> fetchNearbyCafes(double lat, double lon) async {
     print("Erreur de requête: $e");
   }
 }
+
+void main() {
+  fetchNearbyCafes(46.227192, 7.363315);
+}
