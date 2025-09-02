@@ -288,4 +288,4 @@ int? _asInt(dynamic v) {
   return int.tryParse(v.toString());
 }
 
-String? _asString(dynamic v) => v == null ? null : v.toString();
+String? _asString(dynamic v) => v?.toString();

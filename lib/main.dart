@@ -34,6 +34,8 @@ import 'features/admin/screens/admin_users_screen.dart';
 
 // --- Modèles ---
 import 'core/models/apartment.dart';
+// -- Test ---
+import 'package:room_renting_group1/features/review/screens/review_test_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -119,6 +121,11 @@ class _MyAppState extends State<MyApp> {
             final apt = s.extra is Apartment ? s.extra as Apartment : null;
             return EditApartmentPage(apartment: apt);
           },
+        ),
+        // 2. Ajouter la route pour la page de test
+        GoRoute(
+          path: '/review-test',
+          builder: (ctx, s) => const ReviewTestPage(),
         ),
       ],
       errorBuilder: (context, state) => Scaffold(

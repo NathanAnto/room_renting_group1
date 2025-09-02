@@ -48,7 +48,6 @@ class Listing {
     required this.createdAt,
     required this.updatedAt,
     required this.images,
-    // Initialisation des nouveaux champs.
     this.averageRating = 0.0,
     this.reviewCount = 0,
   });
@@ -62,22 +61,22 @@ class Listing {
       description: data['description'] ?? '',
       type: data['type'] ?? '',
       rentPerMonth: (data['rentPerMonth'] ?? 0.0).toDouble(),
-      // Correction de la coquille 'perdictedRentPerMonth' -> 'predictedRentPerMonth'
       predictedRentPerMonth: (data['predictedRentPerMonth'] ?? 0.0).toDouble(),
       city: data['city'] ?? '',
       addressLine: data['addressLine'] ?? '',
       lat: (data['lat'] ?? 0.0).toDouble(),
       lng: (data['lng'] ?? 0.0).toDouble(),
       surface: (data['surface'] ?? 0.0).toDouble(),
-      // Correction de la coquille 'availabilty' -> 'availability'
       availability: data['availability'] ?? '',
       amenities: data['amenities'] ?? {},
       status: data['status'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      // Correction de la coquille 'updateAt' -> 'updatedAt'
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      createdAt: (data['createdAt'] is Timestamp)
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      updatedAt: (data['updatedAt'] is Timestamp)
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
       images: List<String>.from(data['images'] ?? []),
-      // Lecture des nouveaux champs depuis Firestore.
       averageRating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: data['reviewCount'] ?? 0,
     );

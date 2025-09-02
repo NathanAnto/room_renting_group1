@@ -421,7 +421,7 @@ class CreateListingScreen extends HookWidget {
 }
 
 class _AddressSearchDialog extends HookWidget {
-  const _AddressSearchDialog({super.key});
+  const _AddressSearchDialog();
 
   @override
   Widget build(BuildContext context) {
@@ -438,7 +438,7 @@ class _AddressSearchDialog extends HookWidget {
       return () => timer.value?.cancel();
     }, const []);
 
-    Future<void> _performSearch(String query) async {
+    Future<void> performSearch(String query) async {
       // Don't search for very short queries to save API calls
       if (query.length < 3) {
         searchResults.value = [];
@@ -461,7 +461,7 @@ class _AddressSearchDialog extends HookWidget {
     void onSearchChanged(String query) {
       if (timer.value?.isActive ?? false) timer.value!.cancel();
       timer.value = Timer(const Duration(milliseconds: 500), () {
-        _performSearch(query);
+        performSearch(query);
       });
     }
 

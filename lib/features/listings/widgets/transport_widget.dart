@@ -325,7 +325,7 @@ class _ItineraryTile extends StatelessWidget {
                     if (l.fromTime != null && l.toTime != null)
                       '${_hm(l.fromTime!)}→${_hm(l.toTime!)}',
                     subtitle,
-                  ].where((e) => e != null && e.toString().trim().isNotEmpty)
+                  ].where((e) => e.toString().trim().isNotEmpty)
                    .map((e) => e.toString())
                    .join(' • '),
                 ),

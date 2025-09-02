@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/services/apartment_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/models/apartment.dart';
-import 'edit_apartment_page.dart';
 
 class ApartmentsPage extends StatelessWidget {
   const ApartmentsPage({super.key});
