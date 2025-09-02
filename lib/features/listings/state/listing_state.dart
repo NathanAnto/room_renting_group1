@@ -1,7 +1,10 @@
 // lib/state/listing_state.dart
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:room_renting_group1/features/listings/state/filter_state.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/services/listing_service.dart';
+import '../screens/listings_screen.dart';
 
 // 1. A StateNotifier to manage the list of listings.
 //    This allows for adding, updating, and deleting listings in the app's state.
@@ -76,14 +79,25 @@ class ListingsNotifier extends StateNotifier<AsyncValue<List<Listing>>> {
 
 // 2. The provider that exposes the ListingsNotifier.
 //    This is the entry point for widgets to access the listings state.
-final listingsProvider =
-    StateNotifierProvider<ListingsNotifier, AsyncValue<List<Listing>>>(
-  (ref) => ListingsNotifier(),
-);
+final listingsProvider = StreamProvider<List<Listing>>((ref) {
+  // Watch the filter options
+  final filters = ref.watch(filterOptionsProvider);
+  final listingService = ListingService(); // Assuming you have a service instance
 
-// 3. A provider to manage the loading state of a single listing.
-final singleListingProvider =
-    FutureProvider.family<Listing?, String>((ref, listingId) {
-  final service = ListingService();
-  return service.getListing(listingId);
+  // Get amenities that are true
+  final selectedAmenities = filters.amenities?.entries
+    .where((entry) => entry.value == true)
+    .map((entry) => entry.key)
+    .toList();
+    
+  return listingService.getFilteredListings(
+    minRent: filters.priceRange?.start,
+    maxRent: filters.priceRange?.end,
+    city: filters.city,
+    type: filters.type,
+    maxProximHessoDistance: filters.maxHessoDist,
+    maxPublicTransportDistance: filters.maxTransportDist,
+    amenities: selectedAmenities,
+    // Add other filters like surface and numRooms if needed in getFilteredListings
+  );
 });

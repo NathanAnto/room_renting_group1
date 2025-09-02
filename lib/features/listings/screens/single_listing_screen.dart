@@ -84,7 +84,7 @@ class SingleListingScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${listing.city} - ${listing.addressLine}',
+                    listing.addressLine,
                     style: theme.textTheme.muted,
                   ),
                   const SizedBox(height: 16),

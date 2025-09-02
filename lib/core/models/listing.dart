@@ -9,7 +9,6 @@ class Listing {
   final String type;
   final double rentPerMonth;
   final double predictedRentPerMonth;
-  final String city;
   final String addressLine;
   final double lat;
   final double lng;
@@ -17,7 +16,7 @@ class Listing {
   final double distanceToPublicTransportKm;
   final double proximHessoKm;
   final int numRooms;
-  final String availability;
+  final Map<String, dynamic> availability;
   final Map<String, bool> amenities;
   final String status;
   final DateTime createdAt;
@@ -32,7 +31,6 @@ class Listing {
     required this.type,
     required this.rentPerMonth,
     required this.predictedRentPerMonth,
-    required this.city,
     required this.addressLine,
     required this.lat,
     required this.lng,
@@ -58,7 +56,6 @@ class Listing {
       type: data['type'] ?? '',
       rentPerMonth: (data['rentPerMonth'] ?? 0.0).toDouble(),
       predictedRentPerMonth: (data['predictedRentPerMonth'] ?? 0.0).toDouble(),
-      city: data['city'] ?? '',
       addressLine: data['addressLine'] ?? '',
       lat: (data['lat'] ?? 0.0).toDouble(),
       lng: (data['lng'] ?? 0.0).toDouble(),
@@ -67,7 +64,7 @@ class Listing {
           .toDouble(),
       proximHessoKm: (data['proxim_hesso_km'] ?? 0.0).toDouble(),
       numRooms: (data['num_rooms'] ?? 0).toInt(),
-      availability: data['availability'] ?? '',
+      availability: data['availability'] ?? {},
       amenities:
           (data['amenities'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(
@@ -95,7 +92,6 @@ class Listing {
       'type': type,
       'rentPerMonth': rentPerMonth,
       'perdictedRentPerMonth': predictedRentPerMonth,
-      'city': city,
       'addressLine': addressLine,
       'lat': lat,
       'lng': lng,
@@ -118,4 +114,27 @@ class Listing {
     "charges_incl": "Charges Included",
     "car_park": "Car Park",
   };
+}
+
+class AddressResult {
+  final String cityName;
+  final String displayName;
+  final double lat;
+  final double lng;
+
+  AddressResult({
+    required this.cityName,
+    required this.displayName,
+    required this.lat,
+    required this.lng,
+  });
+
+  factory AddressResult.fromJson(Map<String, dynamic> json) {
+    return AddressResult(
+      cityName: json['name'] ?? 'N/A',
+      displayName: json['display_name'] ?? 'N/A',
+      lat: double.parse(json['lat'] ?? '0.0'),
+      lng: double.parse(json['lon'] ?? '0.0'),
+    );
+  }
 }

@@ -12,61 +12,10 @@ import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http; // Import the http package
 import '../../../core/models/listing.dart';
 import '../../../core/services/listing_service.dart';
-
-// A simple class to hold parsed address data
-class AddressResult {
-  final String displayName;
-  final double lat;
-  final double lng;
-
-  AddressResult({
-    required this.displayName,
-    required this.lat,
-    required this.lng,
-  });
-
-  factory AddressResult.fromJson(Map<String, dynamic> json) {
-    return AddressResult(
-      displayName: json['display_name'] ?? 'N/A',
-      lat: double.parse(json['lat'] ?? '0.0'),
-      lng: double.parse(json['lon'] ?? '0.0'),
-    );
-  }
-}
-
-// Function to search for addresses using Nominatim API
-Future<List<AddressResult>> _searchAddresses(String query) async {
-  if (query.isEmpty) {
-    return [];
-  }
-
-  // Build the Nominatim API URL with search parameters
-  final url = Uri.https('nominatim.openstreetmap.org', '/search', {
-    'q': query,
-    'format': 'json',
-    'addressdetails': '1',
-    'limit': '10',
-    'countrycodes': 'ch',
-  });
-
-  // Add User-Agent header as required by Nominatim usage policy
-  final response = await http.get(
-    url,
-    headers: {'User-Agent': 'PropertyFinderApp/1.0'},
-  );
-
-  if (response.statusCode == 200) {
-    // Parse the JSON response
-    final List<dynamic> data = json.decode(response.body);
-    return data.map((json) => AddressResult.fromJson(json)).toList();
-  } else {
-    print('Error searching addresses: ${response.statusCode}');
-    return [];
-  }
-}
+import '../widgets/listing_address_search.dart';
 
 // Sample data for dropdowns
-const listingTypes = {'apartment': 'Apartment', 'room': 'Room'};
+const listingTypes = {'entire_home': 'Entire Home', 'room': 'Room'};
 
 const availabilityOptions = {'published': 'Published', 'archived': 'Archived'};
 
@@ -169,7 +118,6 @@ class CreateListingScreen extends HookWidget {
                       type: selectedType.value!,
                       rentPerMonth: double.tryParse(rentController.text) ?? 0.0,
                       predictedRentPerMonth: 0.0,
-                      city: cityController.text,
                       addressLine: addressController.text,
                       lat: lat.value,
                       lng: lng.value,
@@ -182,7 +130,7 @@ class CreateListingScreen extends HookWidget {
                       proximHessoKm:
                           double.tryParse(proximHessoController.text) ?? 0.0,
                       numRooms: int.tryParse(numRoomsController.text) ?? 0,
-                      availability: selectedAvailability.value!,
+                      availability: {},// selectedAvailability.value!,
                       amenities: selectedAmenities.value,
                       status: 'open',
                       createdAt: DateTime.now(),
@@ -262,7 +210,7 @@ class CreateListingScreen extends HookWidget {
                       final selectedAddress = await showDialog<AddressResult?>(
                         context: context,
                         builder: (BuildContext dialogContext) {
-                          return const _AddressSearchDialog();
+                          return const AddressSearchDialog();
                         },
                       );
 
@@ -399,109 +347,6 @@ class CreateListingScreen extends HookWidget {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AddressSearchDialog extends HookWidget {
-  const _AddressSearchDialog({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final searchController = useTextEditingController();
-    final searchResults = useState<List<AddressResult>>([]);
-    final isLoading = useState<bool>(false);
-    final hasSearched = useState<bool>(
-      false,
-    ); // Track if a search has been attempted
-    final timer = useRef<Timer?>(null);
-
-    // Clean up the timer when the widget is disposed to prevent memory leaks
-    useEffect(() {
-      return () => timer.value?.cancel();
-    }, const []);
-
-    Future<void> _performSearch(String query) async {
-      // Don't search for very short queries to save API calls
-      if (query.length < 3) {
-        searchResults.value = [];
-        isLoading.value = false;
-        hasSearched.value = true;
-        return;
-      }
-      isLoading.value = true;
-      hasSearched.value = true; // Mark that a search has been attempted
-      final results = await _searchAddresses(query);
-      // Ensure the widget is still in the tree before updating state
-      if (context.mounted) {
-        searchResults.value = results;
-        isLoading.value = false;
-      }
-    }
-
-    // This function debounces the search. It starts a timer and only
-    // calls the search function after the user has stopped typing.
-    void onSearchChanged(String query) {
-      if (timer.value?.isActive ?? false) timer.value!.cancel();
-      timer.value = Timer(const Duration(milliseconds: 500), () {
-        _performSearch(query);
-      });
-    }
-
-    return Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ShadInput(
-              controller: searchController,
-              placeholder: const Text('Search for an address'),
-              onChanged: onSearchChanged, // Use the new debounced function
-            ),
-            const SizedBox(height: 16),
-            // Constrain the height to prevent the dialog from resizing awkwardly
-            SizedBox(
-              height: 300,
-              child: Builder(
-                builder: (context) {
-                  if (isLoading.value) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  // Show a helpful message before the first search
-                  if (!hasSearched.value) {
-                    return const Center(
-                      child: Text('Start typing to find an address.'),
-                    );
-                  }
-                  if (searchResults.value.isEmpty) {
-                    return const Center(child: Text('No results found.'));
-                  }
-                  // The ListView is now safely constrained
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: searchResults.value.length,
-                    itemBuilder: (context, index) {
-                      final result = searchResults.value[index];
-                      return ListTile(
-                        title: Text(result.displayName),
-                        onTap: () {
-                          Navigator.pop(context, result);
-                        },
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-            ShadButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-          ],
         ),
       ),
     );

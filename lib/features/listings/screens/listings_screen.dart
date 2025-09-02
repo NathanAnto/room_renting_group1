@@ -1,20 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:room_renting_group1/core/models/filter_options.dart';
+import 'package:room_renting_group1/core/models/listing.dart';
+import 'package:room_renting_group1/features/listings/state/filter_state.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import '../widgets/listing_card.dart';
 import '../widgets/listing_filter_bottom_sheet.dart';
 import '../state/listing_state.dart';
 import 'single_listing_screen.dart';
-import '../../../core/models/filter_options.dart';
+import '../widgets/listing_address_search.dart';
 
-class ListingsScreen extends ConsumerWidget {
+class ListingsScreen extends ConsumerStatefulWidget {
   const ListingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ListingsScreen> createState() => _ListingsScreenState();
+}
+
+class _ListingsScreenState extends ConsumerState<ListingsScreen> {
+  late final TextEditingController addressController;
+
+  @override
+  void initState() {
+    super.initState();
+    addressController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    addressController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final listingsAsyncValue = ref.watch(listingsProvider);
     final theme = ShadTheme.of(context);
     final filterOptions = ref.watch(filterOptionsProvider);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && addressController.text != (filterOptions.city ?? '')) {
+        addressController.text = filterOptions.city ?? '';
+      }
+    });
 
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
@@ -35,16 +63,68 @@ class ListingsScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: ShadInput(
-                    placeholder: const Row(
-                      children: [
-                        Icon(Icons.search, size: 18),
-                        SizedBox(width: 8),
-                        Text('Search for a City...'),
-                      ],
-                    ),
+                    controller: addressController,
+                    placeholder: const Text('Search city'),
+                    onPressed: () async {
+                      final selectedAddress = await showDialog<AddressResult?>(
+                        context: context,
+                        builder: (BuildContext dialogContext) {
+                          // Pass the new parameter here
+                          return const AddressSearchDialog(
+                            searchOnlyCities: true,
+                          );
+                        },
+                      );
+
+                      if (selectedAddress != null && mounted) {
+                        final currentFilters = ref.read(filterOptionsProvider);
+                        // Creates a copy of the current filters, only changing the city
+                        final newFilters = currentFilters.copyWith(
+                          city: selectedAddress.cityName,
+                        );
+                        print(
+                          'Updating filters from screen with city: ${newFilters.city}',
+                        );
+
+                        // Updates the central state, which triggers a data refetch
+                        ref
+                            .read(filterOptionsProvider.notifier)
+                            .updateFilters(newFilters);
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(width: 8.0),
+
+                if (filterOptions.city != null &&
+                    filterOptions.city!.isNotEmpty) ...[
+                  ShadButton.ghost(
+                    onPressed: () {
+                      addressController.clear();
+                      final currentFilters = ref.read(filterOptionsProvider);
+                      // Manually create a new FilterOptions object
+                      final newFilters = FilterOptions(
+                        // Copy all existing values
+                        priceRange: currentFilters.priceRange,
+                        type: currentFilters.type,
+                        surfaceRange: currentFilters.surfaceRange,
+                        maxTransportDist: currentFilters.maxTransportDist,
+                        maxHessoDist: currentFilters.maxHessoDist,
+                        amenities: currentFilters.amenities,
+                        availableFrom: currentFilters.availableFrom,
+                        availableTo: currentFilters.availableTo,
+                        // Explicitly set city to null
+                        city: null,
+                      );
+                      ref
+                          .read(filterOptionsProvider.notifier)
+                          .updateFilters(newFilters);
+                    },
+                    child: const Icon(LucideIcons.x, size: 16),
+                  ),
+                  const SizedBox(width: 8.0),
+                ],
+
                 ShadButton.secondary(
                   onPressed: () {
                     showModalBottomSheet(
@@ -110,4 +190,3 @@ class ListingsScreen extends ConsumerWidget {
     );
   }
 }
-
