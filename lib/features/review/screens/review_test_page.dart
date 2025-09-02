@@ -1,7 +1,7 @@
+// lib/features/review/screens/review_test_page.dart
+
 import 'package:flutter/material.dart';
-// NOUVEAU: Import de l'écran pour noter un étudiant
 import 'package:room_renting_group1/features/review/screens/rate_student_screen.dart';
-// CORRECTION: Import mis à jour avec le nouveau nom de fichier
 import 'package:room_renting_group1/features/review/screens/rate_listing_screen.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -10,7 +10,7 @@ class ReviewTestPage extends StatelessWidget {
 
   // --- Données de test ---
   // IMPORTANT: Remplacez ces valeurs par de vrais IDs de votre base de données
-  static const String testPropertyId = "7oXDeDcuzSClzhJ72BfY"; // ID d'un logement
+  static const String testPropertyId = "zVL2DHg1pbLWbVt93kbO"; // ID d'un logement
   static const String testOwnerId = "8qlsMBOcvkXXzsG93kqK8fDeoKH2"; // ID du propriétaire du logement
   static const String testStudentId = "2PY2rgy6N1XFuPiFvFn5lIdtzdx2"; // ID d'un étudiant à noter
   static const String testStudentName = "Dija Chandrata"; // Mettez un nom de test ici
