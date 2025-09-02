@@ -1,10 +1,25 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-Future<void> fetchNearbyCafes(double lat, double lon) async {
+class Place {
+  final String name;
+  final String address;
+  final double? distanceMeters; // si ton API la fournit
+
+  Place({
+    required this.name,
+    required this.address,
+    this.distanceMeters,
+  });
+
+  @override
+  String toString() => '$name — $address';
+}
+
+Future<List<Place>> fetchNearbyPlaces(double lat, double lon) async {
   const apiKey = "30082fbbcfb0451281fb8c64c875b577";
   final url = Uri.parse(
-    "https://api.geoapify.com/v2/places?categories=catering.cafe,commercial.supermarket&filter=circle:$lon,$lat,500&limit=10&apiKey=$apiKey",
+    "https://api.geoapify.com/v2/places?categories=catering.cafe,commercial.supermarket&filter=circle:$lon,$lat,750&limit=10&apiKey=$apiKey",
   );
 
   try {
@@ -14,18 +29,21 @@ Future<void> fetchNearbyCafes(double lat, double lon) async {
       final data = jsonDecode(response.body);
       final features = data["features"] as List;
 
-      for (var f in features) {
+      return features.map((f) {
         final props = f["properties"];
-        print("Nom: ${props["name"]}, Adresse: ${props["address_line2"]}");
-      }
+        return Place(
+          name: props["name"],
+          address: props["address_line2"],
+          distanceMeters: props["distance"]?.toDouble(),
+        );
+      }).toList();
     } else {
       print("Erreur: ${response.statusCode} - ${response.body}");
+      return [];
     }
   } catch (e) {
     print("Erreur de requête: $e");
+    return [];
   }
 }
 
-void main() {
-  fetchNearbyCafes(46.227192, 7.363315);
-}
