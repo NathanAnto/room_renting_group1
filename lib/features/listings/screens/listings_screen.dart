@@ -4,6 +4,7 @@ import 'package:room_renting_group1/core/models/filter_options.dart';
 import 'package:room_renting_group1/core/models/listing.dart';
 import 'package:room_renting_group1/features/listings/state/filter_state.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import '../widgets/address_search_field.dart';
 import '../widgets/listing_card.dart';
 import '../widgets/listing_filter_bottom_sheet.dart';
 import '../state/listing_state.dart';
@@ -62,35 +63,35 @@ class _ListingsScreenState extends ConsumerState<ListingsScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: ShadInput(
-                    controller: addressController,
-                    placeholder: const Text('Search city'),
-                    onPressed: () async {
-                      final selectedAddress = await showDialog<OsmPlace?>(
-                        context: context,
-                        builder: (BuildContext dialogContext) {
-                          // Pass the new parameter here
-                          return const AddressSearchDialog(
-                            searchOnlyCities: true,
-                          );
-                        },
+                  child: AddressSearchField(
+                    controller:
+                        addressController, // Make sure you have this controller defined
+                    label: 'Search for a city',
+                    // searchOnlyCities: true, // This enables the new city-only filter
+                    onPlaceSelected: (OsmPlace selectedPlace) {
+                      final currentFilters = ref.read(filterOptionsProvider);
+
+                      // Use the city from the selected place, with fallbacks.
+                      final cityName =
+                          selectedPlace.city ??
+                          selectedPlace.town ??
+                          selectedPlace.displayName.split(',').first;
+
+                      final newFilters = currentFilters.copyWith(
+                        city: cityName,
                       );
 
-                      if (selectedAddress != null && mounted) {
-                        final currentFilters = ref.read(filterOptionsProvider);
-                        // Creates a copy of the current filters, only changing the city
-                        final newFilters = currentFilters.copyWith(
-                          city: selectedAddress.city,
-                        );
-                        print(
-                          'Updating filters from screen with city: ${newFilters.city}',
-                        );
+                      print(
+                        'Updating filters from screen with city: ${newFilters.city}',
+                      );
 
-                        // Updates the central state, which triggers a data refetch
-                        ref
-                            .read(filterOptionsProvider.notifier)
-                            .updateFilters(newFilters);
-                      }
+                      // Update the controller's text to reflect the selection
+                      addressController.text = cityName;
+
+                      // Update the central state, which triggers a data refetch
+                      ref
+                          .read(filterOptionsProvider.notifier)
+                          .updateFilters(newFilters);
                     },
                   ),
                 ),

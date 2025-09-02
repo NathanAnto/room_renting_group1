@@ -24,6 +24,26 @@ class FilterOptions {
     this.amenities,
   });
 
+  /// Creates an instance of FilterOptions with all values reset to their defaults.
+  factory FilterOptions.initial() {
+    return FilterOptions(
+      priceRange: null,
+      availableFrom: null,
+      availableTo: null,
+      city: null,
+      type: null,
+      surfaceRange: null,
+      maxTransportDist: null,
+      maxHessoDist: null,
+      amenities: {
+        "is_furnished": false,
+        "wifi_incl": false,
+        "charges_incl": false,
+        "car_park": false,
+      },
+    );
+  }
+  
   FilterOptions copyWith({
     RangeValues? priceRange,
     DateTime? availableFrom,

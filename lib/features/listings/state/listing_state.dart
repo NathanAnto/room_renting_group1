@@ -95,6 +95,8 @@ final listingsProvider = StreamProvider<List<Listing>>((ref) {
   return listingService.getFilteredListings(
     city: filters.city,
     type: filters.type,
+    availableFrom: filters.availableFrom,
+    availableTo: filters.availableTo,
     minRent: filters.priceRange?.start,
     maxRent: filters.priceRange?.end,
     minSurface: filters.surfaceRange?.start,

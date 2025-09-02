@@ -1,4 +1,3 @@
-// lib/features/listings/widgets/filter_bottom_sheet.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -14,6 +13,9 @@ class FilterBottomSheet extends ConsumerStatefulWidget {
 }
 
 class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
+  // --- ADD THIS LINE ---
+  Key _formControlsKey = UniqueKey();
+
   // State variables for filters
   late RangeValues _priceRange;
   DateTime? _availableFrom;
@@ -38,14 +40,38 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     _surfaceRange = currentFilters.surfaceRange ?? const RangeValues(20, 100);
     _maxTransportDist = currentFilters.maxTransportDist ?? 1;
     _maxHessoDist = currentFilters.maxHessoDist ?? 5;
-    _amenities =
-        currentFilters.amenities ??
+    _amenities = currentFilters.amenities ??
         {
           "is_furnished": false,
           "wifi_incl": false,
           "charges_incl": false,
           "car_park": false,
         };
+  }
+
+  /// Resets the local filter state to the default values.
+  void _resetToDefaults() {
+    setState(() {
+      // --- ADD THIS LINE ---
+      _formControlsKey = UniqueKey();
+
+      final currentFilters = ref.read(filterOptionsProvider);
+      _priceRange = const RangeValues(500, 2500);
+      _availableFrom = null;
+      _availableTo = null;
+      // Keep the externally set city from the home screen search
+      _selectedCity = currentFilters.city;
+      _selectedType = null;
+      _surfaceRange = const RangeValues(20, 100);
+      _maxTransportDist = 1;
+      _maxHessoDist = 5;
+      _amenities = {
+        "is_furnished": false,
+        "wifi_incl": false,
+        "charges_incl": false,
+        "car_park": false,
+      };
+    });
   }
 
   // Helper method to build a section with a title
@@ -77,15 +103,26 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Filters', style: theme.textTheme.h4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Filters', style: theme.textTheme.h4),
+              ShadButton.ghost(
+                onPressed: _resetToDefaults,
+                child: const Text('Reset'),
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
           Expanded(
             child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // --- Price Filter ---
-                  _buildFilterSection(
+        // --- MODIFY THIS WIDGET ---
+        child: Column(
+          key: _formControlsKey,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- Price Filter ---
+            _buildFilterSection(
                     'Price Range (CHF ${_priceRange.start.round()} - ${_priceRange.end.round()})',
                     RangeSlider(
                       min: 0,
@@ -100,15 +137,10 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                     Center(
                       child: ShadCalendar.range(
                         onChanged: (range) {
-                          if (range!.end != null) {
+                          if (range != null) {
                             setState(() {
                               _availableFrom = range.start;
                               _availableTo = range.end;
-                            });
-                          } else {
-                            setState(() {
-                              _availableFrom = range.start;
-                              _availableTo = range.start?.addDays(1);
                             });
                           }
                         },
@@ -173,6 +205,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                       min: 0,
                       max: 50,
                       initialValue: _maxHessoDist,
+                      // controller: ,
                       onChanged: (value) =>
                           setState(() => _maxHessoDist = value),
                     ),
@@ -215,31 +248,43 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          ShadButton(
-            width: double.infinity,
-            onPressed: () {
-              // Create a new FilterOptions object from the local state
-              final newFilters = FilterOptions(
-                priceRange: _priceRange,
-                city: _selectedCity,
-                type: _selectedType,
-                surfaceRange: _surfaceRange,
-                maxTransportDist: _maxTransportDist,
-                maxHessoDist: _maxHessoDist,
-                amenities: _amenities,
-              );
-              // Update the provider with the new state
-              ref
-                  .read(filterOptionsProvider.notifier)
-                  .updateFilters(newFilters);
+          Row(
+            children: [
+              const SizedBox(width: 8),
+              Expanded(
+                child: ShadButton(
+                  width: double.infinity,
+                  onPressed: () {
+                    // Create a new FilterOptions object from the local state
+                    final newFilters = FilterOptions(
+                      priceRange: _priceRange,
+                      availableFrom: _availableFrom,
+                      availableTo: _availableTo,
+                      city: _selectedCity,
+                      type: _selectedType,
+                      surfaceRange: _surfaceRange,
+                      maxTransportDist: _maxTransportDist,
+                      maxHessoDist: _maxHessoDist,
+                      amenities: _amenities,
+                    );
+                    // Update the provider with the new state
+                    ref
+                        .read(filterOptionsProvider.notifier)
+                        .updateFilters(newFilters);
 
-              // Close the bottom sheet
-              Navigator.of(context).pop();
-            },
-            child: const Text('Apply Filters'),
+                    // Close the bottom sheet
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Apply Filters'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 }
+
+
+

@@ -52,6 +52,8 @@ class ListingService {
   Stream<List<Listing>> getFilteredListings({
     String? city,
     String? type,
+    DateTime? availableFrom,
+    DateTime? availableTo,
     double? minRent,
     double? maxRent,
     double? minSurface,
@@ -71,14 +73,32 @@ class ListingService {
     if (type != null && type.isNotEmpty) {
       query = query.where('type', isEqualTo: type);
     }
-    // TODO: Add date range filtering
 
     return query.snapshots().map((snapshot) {
-      List<Listing> listings =
-          snapshot.docs.map((doc) => Listing.fromFirestore(doc)).toList();
+      List<Listing> listings = snapshot.docs
+          .map((doc) => Listing.fromFirestore(doc))
+          .toList();
 
       // 3. Apply ALL other filters here in the app (client-side).
       return listings.where((listing) {
+        if (availableFrom != null && availableTo != null) {
+          // Check if the user's range overlaps with ANY of the listing's windows
+          final isAvailable = listing.availability.windows.any((window) {
+            // Standard interval overlap condition:
+            // UserStart <= WindowEnd AND UserEnd >= WindowStart
+            final userStart = availableFrom;
+            final userEnd = availableTo;
+            final windowStart = window.start;
+            final windowEnd = window.end;
+
+            return !userStart.isAfter(windowEnd) &&
+                !userEnd.isBefore(windowStart);
+          });
+
+          // If no availability window overlaps, discard the listing
+          if (!isAvailable) return false;
+        }
+
         // Price Range Check
         if (minRent != null && listing.rentPerMonth < minRent) return false;
         if (maxRent != null && listing.rentPerMonth > maxRent) return false;
@@ -204,15 +224,11 @@ class ListingService {
 
     // search for city only if city is true
     if (city) {
-      url = url.replace(queryParameters: {
-        ...url.queryParameters,
-        'city': query,
-      });
+      url = url.replace(
+        queryParameters: {...url.queryParameters, 'city': query},
+      );
     } else {
-      url = url.replace(queryParameters: {
-        ...url.queryParameters,
-        'q': query,
-      });      
+      url = url.replace(queryParameters: {...url.queryParameters, 'q': query});
     }
 
     // Add User-Agent header as required by Nominatim usage policy
