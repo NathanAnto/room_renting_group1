@@ -163,7 +163,7 @@ Future<void> main() async {
   await api.health();
 
   final price = await api.predictPrice(
-    surfaceM2: 25.0,
+    surfaceM2: 20.0,
     numRooms: 2,
     type: "room",
     isFurnished: false,

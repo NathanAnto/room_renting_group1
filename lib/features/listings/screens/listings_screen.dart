@@ -66,7 +66,7 @@ class _ListingsScreenState extends ConsumerState<ListingsScreen> {
                     controller: addressController,
                     placeholder: const Text('Search city'),
                     onPressed: () async {
-                      final selectedAddress = await showDialog<AddressResult?>(
+                      final selectedAddress = await showDialog<OsmPlace?>(
                         context: context,
                         builder: (BuildContext dialogContext) {
                           // Pass the new parameter here
@@ -80,7 +80,7 @@ class _ListingsScreenState extends ConsumerState<ListingsScreen> {
                         final currentFilters = ref.read(filterOptionsProvider);
                         // Creates a copy of the current filters, only changing the city
                         final newFilters = currentFilters.copyWith(
-                          city: selectedAddress.cityName,
+                          city: selectedAddress.city,
                         );
                         print(
                           'Updating filters from screen with city: ${newFilters.city}',

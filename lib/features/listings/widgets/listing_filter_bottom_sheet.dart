@@ -36,7 +36,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     _selectedCity = currentFilters.city;
     _selectedType = currentFilters.type;
     _surfaceRange = currentFilters.surfaceRange ?? const RangeValues(20, 100);
-    _maxTransportDist = currentFilters.maxTransportDist ?? 5;
+    _maxTransportDist = currentFilters.maxTransportDist ?? 1;
     _maxHessoDist = currentFilters.maxHessoDist ?? 5;
     _amenities =
         currentFilters.amenities ??
@@ -171,7 +171,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                     'Max Distance to HES-SO (${_maxHessoDist.toStringAsFixed(1)} km)',
                     ShadSlider(
                       min: 0,
-                      max: 10,
+                      max: 50,
                       initialValue: _maxHessoDist,
                       onChanged: (value) =>
                           setState(() => _maxHessoDist = value),
@@ -181,7 +181,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                     'Max Distance to Public Transport (${_maxTransportDist.toStringAsFixed(1)} km)',
                     ShadSlider(
                       min: 0,
-                      max: 50,
+                      max: 2,
                       initialValue: _maxTransportDist,
                       onChanged: (value) =>
                           setState(() => _maxTransportDist = value),

@@ -23,7 +23,7 @@ class _AddressSearchDialogState extends ConsumerState<AddressSearchDialog> {
   late final TextEditingController _controller;
   Timer? _debounce;
   var _isLoading = false;
-  List<AddressResult> _results = [];
+  List<OsmPlace> _results = [];
 
   @override
   void initState() {

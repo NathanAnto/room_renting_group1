@@ -7,17 +7,12 @@ class FilterOptionsNotifier extends StateNotifier<FilterOptions> {
   FilterOptionsNotifier() : super(FilterOptions());
 
   void updateFilters(FilterOptions newOptions) {
-    print('Notifier received new city: ${newOptions.city}');
-    print('Notifier received new type: ${newOptions.type}');
-    print('Notifier received new price range: ${newOptions.priceRange}');
-    
     state = newOptions;
-
-    print('State after update - city: ${state.city}');  }
+  }
 }
 
 // This is the provider that our UI will interact with
 final filterOptionsProvider =
     StateNotifierProvider<FilterOptionsNotifier, FilterOptions>(
-  (ref) => FilterOptionsNotifier(),
-);
+      (ref) => FilterOptionsNotifier(),
+    );
