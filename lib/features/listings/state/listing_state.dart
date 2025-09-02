@@ -1,58 +1,58 @@
 // lib/state/listing_state.dart
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/models/listing.dart';
-import '../../../core/services/listing_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-// 1. A StateNotifier to manage the list of listings.
-//    This allows for adding, updating, and deleting listings in the app's state.
+import 'package:room_renting_group1/core/models/listing.dart';
+import 'package:room_renting_group1/core/services/listing_service.dart';
+
 class ListingsNotifier extends StateNotifier<AsyncValue<List<Listing>>> {
   ListingsNotifier() : super(const AsyncValue.loading()) {
-    _fetchListings();
+    _subscribe();
   }
 
   final ListingService _listingService = ListingService();
+  StreamSubscription<List<Listing>>? _sub;
 
-  Future<void> _fetchListings() async {
-    try {
-      // Use the stream from the service to listen for real-time updates from Firebase
-      _listingService.getListings().listen(
-        (listings) {
-          state = AsyncValue.data(listings);
-        },
-        onError: (error) {
-          state = AsyncValue.error(error, StackTrace.current);
-        },
-      );
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+  void _subscribe() {
+    // Stream simple (pas d'index composite requis)
+    _sub = _listingService.getListings().listen(
+      (listings) => state = AsyncValue.data(listings),
+      onError: (error, stack) => state = AsyncValue.error(error, stack),
+    );
   }
 
-  // Method to add a new listing
-  Future<void> addListing(Listing listing) async {
-    // Optimistically update the UI while the async operation is in progress.
-    state = state.whenData((listings) {
-      // Add a temporary listing to the local state
-      return [...listings, listing];
-    });
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
+  Future<void> addListing(Listing listing) async {
+    // Optimistic UI (le stream écrasera ensuite avec la vérité serveur)
+    state = state.whenData((list) => [...list, listing]);
     try {
       await _listingService.addListing(listing);
     } catch (e, st) {
-      // If the operation fails, revert the state
       state = AsyncValue.error(e, st);
     }
   }
 
-  // Method to update an existing listing
   Future<void> updateListing(Listing updatedListing) async {
-    // Optimistically update the UI
-    state = state.whenData((listings) {
-      return [
-        for (final listing in listings)
-          if (listing.id == updatedListing.id) updatedListing else listing,
-      ];
-    });
+    final id = updatedListing.id;
+    if (id == null || id.isEmpty) {
+      state = AsyncValue.error(
+        ArgumentError('updateListing: missing listing.id'),
+        StackTrace.current,
+      );
+      return;
+    }
+
+    // Optimistic UI
+    state = state.whenData((list) => [
+          for (final l in list) (l.id == id) ? updatedListing : l,
+        ]);
+
     try {
       await _listingService.updateListing(updatedListing);
     } catch (e, st) {
@@ -60,12 +60,11 @@ class ListingsNotifier extends StateNotifier<AsyncValue<List<Listing>>> {
     }
   }
 
-  // Method to delete a listing
   Future<void> deleteListing(String listingId) async {
-    // Optimistically update the UI
-    state = state.whenData((listings) {
-      return listings.where((l) => l.id != listingId).toList();
-    });
+    // Optimistic UI
+    state = state.whenData(
+      (list) => list.where((l) => l.id != listingId).toList(),
+    );
     try {
       await _listingService.deleteListing(listingId);
     } catch (e, st) {
@@ -74,16 +73,23 @@ class ListingsNotifier extends StateNotifier<AsyncValue<List<Listing>>> {
   }
 }
 
-// 2. The provider that exposes the ListingsNotifier.
-//    This is the entry point for widgets to access the listings state.
 final listingsProvider =
     StateNotifierProvider<ListingsNotifier, AsyncValue<List<Listing>>>(
   (ref) => ListingsNotifier(),
 );
 
-// 3. A provider to manage the loading state of a single listing.
+// Charger un listing unique
 final singleListingProvider =
     FutureProvider.family<Listing?, String>((ref, listingId) {
   final service = ListingService();
   return service.getListing(listingId);
+});
+
+// Mes listings (filtré côté client sur le stream global)
+final myListingsProvider = StreamProvider.autoDispose<List<Listing>>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return const Stream.empty();
+  return ListingService()
+      .getListings()
+      .map((all) => all.where((l) => l.ownerId == uid).toList());
 });
