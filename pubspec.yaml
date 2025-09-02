@@ -39,6 +39,7 @@ dependencies:
   uuid: ^4.5.1
   shadcn_ui: ^0.29.0
   country_picker: ^2.0.27
+  lucide_icons_flutter: ^3.0.9
 
   #review
   intl: ^0.20.2

@@ -1,522 +1,489 @@
 // lib/features/listings/screens/create_listing_screen.dart
-
-import 'dart:convert'; // Import for JSON decoding
-import 'dart:io';
-import 'dart:async'; // Required for the Timer
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:uuid/uuid.dart';
-import 'package:http/http.dart' as http; // Import the http package
+
 import '../../../core/models/listing.dart';
+import 'package:room_renting_group1/core/models/ListingAvailability.dart';
 import '../../../core/services/listing_service.dart';
 
-// A simple class to hold parsed address data
-class AddressResult {
-  final String displayName;
-  final double lat;
-  final double lng;
-
-  AddressResult({
-    required this.displayName,
-    required this.lat,
-    required this.lng,
-  });
-
-  factory AddressResult.fromJson(Map<String, dynamic> json) {
-    return AddressResult(
-      displayName: json['display_name'] ?? 'N/A',
-      lat: double.parse(json['lat'] ?? '0.0'),
-      lng: double.parse(json['lon'] ?? '0.0'),
-    );
-  }
-}
-
-// Function to search for addresses using Nominatim API
-Future<List<AddressResult>> _searchAddresses(String query) async {
-  if (query.isEmpty) {
-    return [];
-  }
-
-  // Build the Nominatim API URL with search parameters
-  final url = Uri.https('nominatim.openstreetmap.org', '/search', {
-    'q': query,
-    'format': 'json',
-    'addressdetails': '1',
-    'limit': '10',
-    'countrycodes': 'ch',
-  });
-
-  // Add User-Agent header as required by Nominatim usage policy
-  final response = await http.get(
-    url,
-    headers: {'User-Agent': 'PropertyFinderApp/1.0'},
-  );
-
-  if (response.statusCode == 200) {
-    // Parse the JSON response
-    final List<dynamic> data = json.decode(response.body);
-    return data.map((json) => AddressResult.fromJson(json)).toList();
-  } else {
-    print('Error searching addresses: ${response.statusCode}');
-    return [];
-  }
-}
-
-// Sample data for dropdowns
-const listingTypes = {'apartment': 'Apartment', 'room': 'Room'};
-
-const availabilityOptions = {'published': 'Published', 'archived': 'Archived'};
-
-const valueAmenities = {
-  "type": "Type",
-  "surface_m2": "Surface (m²)",
-  "dist_public_transport_km": "Distance to Public Transport (km)",
-  "proxim_hesso_km": "Proximity to HES-SO (km)",
-  "num_rooms": "Number of Rooms",
-};
-
-const boolAmenities = {
-  "is_furnished": "Furnished",
-  "wifi_incl": "WiFi Included",
-  "charges_incl": "Charges Included",
-  "car_park": "Car Park",
-};
-
-class CreateListingScreen extends HookWidget {
+class CreateListingScreen extends StatefulWidget {
   const CreateListingScreen({super.key});
 
-  Future<List<String>> _uploadImages(
-    String listingId,
-    List<PlatformFile> files,
-  ) async {
-    final storage = FirebaseStorage.instance;
-    List<String> downloadUrls = [];
+  @override
+  State<CreateListingScreen> createState() => _CreateListingScreenState();
+}
 
-    for (var file in files) {
-      final fileName = file.name;
-      final path = 'listings/$listingId/$fileName';
-      final fileRef = storage.ref().child(path);
+class _CreateListingScreenState extends State<CreateListingScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _svc = ListingService();
 
+  // --- Text controllers ---
+  final _titleCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _typeCtrl = TextEditingController(text: 'apartment');
+  final _rentCtrl = TextEditingController();
+  final _predictedCtrl = TextEditingController(text: '0');
+  final _cityCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+
+  final _latCtrl = TextEditingController();
+  final _lngCtrl = TextEditingController();
+  final _surfaceCtrl = TextEditingController();
+  final _distPtCtrl = TextEditingController(); // distanceToPublicTransportKm
+  final _proximHessoCtrl = TextEditingController(); // proximHessoKm
+  final _roomsCtrl = TextEditingController();
+
+  // images: coma-separated URLs
+  final _imagesCtrl = TextEditingController();
+
+  // --- Status (string) ---
+  String _status = 'draft';
+  static const _statusValues = ['draft', 'active', 'paused', 'archived'];
+
+  // --- Amenities ---
+  bool _isFurnished = false;
+  bool _wifiIncl = false;
+  bool _chargesIncl = false;
+  bool _carPark = false;
+
+  // --- Availability model state ---
+  final List<AvailabilityWindow> _windows = [];
+  final List<String> _blackoutDates = [];
+  final _minStayCtrl = TextEditingController();
+  final _maxStayCtrl = TextEditingController();
+  final _timezoneCtrl = TextEditingController(text: 'Europe/Zurich');
+
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    _typeCtrl.dispose();
+    _rentCtrl.dispose();
+    _predictedCtrl.dispose();
+    _cityCtrl.dispose();
+    _addressCtrl.dispose();
+    _latCtrl.dispose();
+    _lngCtrl.dispose();
+    _surfaceCtrl.dispose();
+    _distPtCtrl.dispose();
+    _proximHessoCtrl.dispose();
+    _roomsCtrl.dispose();
+    _imagesCtrl.dispose();
+    _minStayCtrl.dispose();
+    _maxStayCtrl.dispose();
+    _timezoneCtrl.dispose();
+    super.dispose();
+  }
+
+  // --- Helpers parse ---
+  double _pDouble(String v) => double.tryParse(v.replaceAll(',', '.')) ?? 0.0;
+  int _pInt(String v) => int.tryParse(v) ?? 0;
+
+  Future<void> _pickWindow() async {
+    final now = DateTime.now();
+    final theme = ShadTheme.of(context);
+
+    final start = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(now.year - 1, 1, 1),
+      lastDate: DateTime(now.year + 3, 12, 31),
+      helpText: 'Start date (inclusive)',
+      builder: (ctx, child) {
+        return Theme(
+          data: Theme.of(ctx).copyWith(
+            colorScheme: Theme.of(ctx).colorScheme.copyWith(
+                  primary: theme.colorScheme.primary,
+                ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (start == null) return;
+
+    final end = await showDatePicker(
+      context: context,
+      initialDate: start.add(const Duration(days: 1)),
+      firstDate: start.add(const Duration(days: 1)),
+      lastDate: DateTime(now.year + 3, 12, 31),
+      helpText: 'End date (exclusive)',
+      builder: (ctx, child) {
+        return Theme(
+          data: Theme.of(ctx).copyWith(
+            colorScheme: Theme.of(ctx).colorScheme.copyWith(
+                  primary: theme.colorScheme.primary,
+                ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (end == null) return;
+
+    setState(() {
+      _windows.add(AvailabilityWindow(start: start.toUtc(), end: end.toUtc()));
+    });
+  }
+
+  Future<void> _pickBlackout() async {
+    final now = DateTime.now();
+    final theme = ShadTheme.of(context);
+
+    final d = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(now.year - 1, 1, 1),
+      lastDate: DateTime(now.year + 3, 12, 31),
+      helpText: 'Add a blackout date',
+      builder: (ctx, child) {
+        return Theme(
+          data: Theme.of(ctx).copyWith(
+            colorScheme: Theme.of(ctx).colorScheme.copyWith(
+                  primary: theme.colorScheme.primary,
+                ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (d == null) return;
+
+    final key =
+        "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+    if (!_blackoutDates.contains(key)) {
+      setState(() => _blackoutDates.add(key));
+    }
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    final ownerId = user?.uid ?? '';
+
+    final listing = Listing(
+      id: null,
+      ownerId: ownerId,
+      title: _titleCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
+      type: _typeCtrl.text.trim(),
+      rentPerMonth: _pDouble(_rentCtrl.text),
+      predictedRentPerMonth: _pDouble(_predictedCtrl.text),
+      city: _cityCtrl.text.trim(),
+      addressLine: _addressCtrl.text.trim(),
+      lat: _pDouble(_latCtrl.text),
+      lng: _pDouble(_lngCtrl.text),
+      surface: _pDouble(_surfaceCtrl.text),
+      distanceToPublicTransportKm: _pDouble(_distPtCtrl.text),
+      proximHessoKm: _pDouble(_proximHessoCtrl.text),
+      numRooms: _pInt(_roomsCtrl.text),
+      availability: ListingAvailability(
+        windows: _windows,
+        blackoutDates: _blackoutDates,
+        minStayNights: _minStayCtrl.text.isEmpty ? null : _pInt(_minStayCtrl.text),
+        maxStayNights: _maxStayCtrl.text.isEmpty ? null : _pInt(_maxStayCtrl.text),
+        timezone: _timezoneCtrl.text.trim().isEmpty ? 'Europe/Zurich' : _timezoneCtrl.text.trim(),
+        monthsIndex: const [], // recalculé côté service
+      ),
+      amenities: {
+        'is_furnished': _isFurnished,
+        'wifi_incl': _wifiIncl,
+        'charges_incl': _chargesIncl,
+        'car_park': _carPark,
+      },
+      status: _status,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      images: _imagesCtrl.text
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(),
+    );
+
+      setState(() => _saving = true);
       try {
-        await fileRef.putData(file.bytes!);
-        final url = await fileRef.getDownloadURL();
-        downloadUrls.add(url);
+        await _svc.addListing(listing);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Listing créé avec succès.')),
+        );
+        Navigator.of(context).pop(); // <-- on ferme sans renvoyer d'id
       } catch (e) {
-        print('Error uploading file: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      } finally {
+        if (mounted) setState(() => _saving = false);
       }
     }
-    return downloadUrls;
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
-    final listingService = useMemoized(() => ListingService());
-
-    final titleController = useTextEditingController();
-    final descriptionController = useTextEditingController();
-    final rentController = useTextEditingController();
-    final cityController = useTextEditingController();
-    final surfaceController = useTextEditingController();
-
-    final selectedType = useState<String?>(null);
-    final selectedAvailability = useState<String?>(null);
-    final amenityValues = useState<Map<String, dynamic>>({});
-    final selectedAmenities = useState<Map<String, bool>>({});
-    final selectedFiles = useState<List<PlatformFile>>([]);
-    final addressController = useTextEditingController();
-    final lat = useState<double>(0.0);
-    final lng = useState<double>(0.0);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.background,
-      body: Center(
-        child: SingleChildScrollView(
+      appBar: AppBar(
+        title: const Text('Créer un listing'),
+        centerTitle: true,
+        backgroundColor: theme.colorScheme.background,
+        elevation: 0,
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
           padding: const EdgeInsets.all(16),
-          child: ShadCard(
-            width: 350,
-            title: Text('Create a new listing', style: theme.textTheme.h4),
-            description: const Text(
-              'Add a new room or apartment to your database.',
+          children: [
+            _sectionTitle('Informations principales'),
+            _row2(
+              _fieldText(_titleCtrl, 'Titre *', validator: _req),
+              _fieldText(_typeCtrl, 'Type (ex: apartment)', validator: _req),
             ),
-            footer: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            _fieldMulti(_descCtrl, 'Description *', maxLines: 4, validator: _req),
+            _row3(
+              _fieldNum(_rentCtrl, 'Loyer CHF/mois *', validator: _req),
+              _fieldNum(_predictedCtrl, 'Loyer prédit CHF/mois'),
+              _dropdownStatus(),
+            ),
+            _row3(
+              _fieldText(_cityCtrl, 'Ville *', validator: _req),
+              _fieldText(_addressCtrl, 'Adresse *', validator: _req),
+              _fieldText(_imagesCtrl, 'Images (URLs séparées par une virgule)'),
+            ),
+            const SizedBox(height: 12),
+            _sectionTitle('Géolocalisation & surfaces'),
+            _row3(
+              _fieldNum(_latCtrl, 'Latitude'),
+              _fieldNum(_lngCtrl, 'Longitude'),
+              _fieldNum(_surfaceCtrl, 'Surface (m²)'),
+            ),
+            _row2(
+              _fieldNum(_distPtCtrl, 'Distance TP (km)'),
+              _fieldNum(_proximHessoCtrl, 'Proximité HES-SO (km)'),
+            ),
+            _fieldNum(_roomsCtrl, 'Nombre de pièces'),
+
+            const SizedBox(height: 12),
+            _sectionTitle('Équipements'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
               children: [
-                ShadButton(
-                  child: const Text('Create'),
-                  onPressed: () async {
-                    if (titleController.text.isEmpty ||
-                        rentController.text.isEmpty ||
-                        selectedType.value == null ||
-                        selectedAvailability.value == null ||
-                        addressController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please fill all required fields.'),
-                        ),
-                      );
-                      return;
-                    }
-
-                    final listingId = const Uuid().v4();
-                    List<String> imageUrls = await _uploadImages(
-                      listingId,
-                      selectedFiles.value,
-                    );
-
-                    final newListing = Listing(
-                      id: listingId,
-                      ownerId: 'placeholder-user-id',
-                      title: titleController.text,
-                      description: descriptionController.text,
-                      type: selectedType.value!,
-                      rentPerMonth: double.tryParse(rentController.text) ?? 0.0,
-                      predictedRentPerMonth: 0.0,
-                      city: cityController.text,
-                      addressLine: addressController.text,
-                      lat: lat.value,
-                      lng: lng.value,
-                      surface: double.tryParse(surfaceController.text) ?? 0.0,
-                      availability: selectedAvailability.value!,
-                      amenities: {
-                        ...amenityValues.value,
-                        ...selectedAmenities.value,
-                      },
-                      status: 'open',
-                      createdAt: DateTime.now(),
-                      updatedAt: DateTime.now(),
-                      images: imageUrls,
-                    );
-                    await listingService.addListing(newListing);
-
-                    titleController.clear();
-                    descriptionController.clear();
-                    rentController.clear();
-                    cityController.clear();
-                    surfaceController.clear();
-                    selectedType.value = null;
-                    selectedAvailability.value = null;
-                    amenityValues.value = {};
-                    selectedAmenities.value = {};
-                    selectedFiles.value = [];
-                    addressController.clear();
-                    lat.value = 0.0;
-                    lng.value = 0.0;
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Listing created successfully!'),
-                      ),
-                    );
-                  },
+                FilterChip(
+                  label: const Text('Meublé'),
+                  selected: _isFurnished,
+                  onSelected: (v) => setState(() => _isFurnished = v),
+                ),
+                FilterChip(
+                  label: const Text('WiFi inclus'),
+                  selected: _wifiIncl,
+                  onSelected: (v) => setState(() => _wifiIncl = v),
+                ),
+                FilterChip(
+                  label: const Text('Charges incluses'),
+                  selected: _chargesIncl,
+                  onSelected: (v) => setState(() => _chargesIncl = v),
+                ),
+                FilterChip(
+                  label: const Text('Parking'),
+                  selected: _carPark,
+                  onSelected: (v) => setState(() => _carPark = v),
                 ),
               ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('Title'),
-                  const SizedBox(height: 6),
-                  ShadInput(
-                    controller: titleController,
-                    placeholder: const Text('Title of your listing'),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Description'),
-                  const SizedBox(height: 6),
-                  ShadInput(
-                    controller: descriptionController,
-                    minLines: 3,
-                    maxLines: 5,
-                    placeholder: const Text('A detailed description'),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Rent per Month'),
-                  const SizedBox(height: 6),
-                  ShadInput(
-                    controller: rentController,
-                    placeholder: const Text('e.g., 1200.00'),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('City'),
-                  const SizedBox(height: 6),
-                  ShadInput(
-                    controller: cityController,
-                    placeholder: const Text('e.g., Sion'),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Address'),
-                  const SizedBox(height: 6),
-                  ShadInput(
-                    controller: addressController,
-                    placeholder: const Text('Start typing an address'),
-                    onPressed: () async {
-                      final selectedAddress = await showDialog<AddressResult?>(
-                        context: context,
-                        builder: (BuildContext dialogContext) {
-                          return const _AddressSearchDialog();
-                        },
-                      );
 
-                      if (selectedAddress != null) {
-                        addressController.text = selectedAddress.displayName;
-                        lat.value = selectedAddress.lat;
-                        lng.value = selectedAddress.lng;
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 6),
-                  const Text('Availability'),
-                  const SizedBox(height: 6),
-                  ShadSelect<String>(
-                    placeholder: const Text('Select'),
-                    options: availabilityOptions.entries
-                        .map(
-                          (e) => ShadOption(value: e.key, child: Text(e.value)),
-                        )
-                        .toList(),
-                    selectedOptionBuilder: (context, value) {
-                      return Text(availabilityOptions[value]!);
-                    },
-                    onChanged: (value) {
-                      selectedAvailability.value = value;
-                    },
-                    initialValue: selectedAvailability.value,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Amenities',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
+            const SizedBox(height: 16),
+            _sectionTitle('Disponibilités'),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _pickWindow,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Ajouter une fenêtre'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _pickBlackout,
+                  icon: const Icon(Icons.event_busy),
+                  label: const Text('Ajouter un blackout'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_windows.isEmpty)
+              Text('Aucune fenêtre ajoutée pour l’instant.',
+                  style: TextStyle(color: theme.colorScheme.mutedForeground)),
+            if (_windows.isNotEmpty) _windowsListCard(theme),
 
-                  const SizedBox(height: 16),
-                  const Text('Type'),
-                  ShadSelect<String>(
-                    placeholder: const Text('Select'),
-                    options: listingTypes.entries
-                        .map(
-                          (e) => ShadOption(value: e.key, child: Text(e.value)),
-                        )
-                        .toList(),
-                    selectedOptionBuilder: (context, value) {
-                      return Text(listingTypes[value]!);
-                    },
-                    onChanged: (value) {
-                      selectedType.value = value;
-                    },
-                    initialValue: selectedType.value,
-                  ),
-                  const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            if (_blackoutDates.isNotEmpty) _blackoutsListCard(theme),
 
-                  const Text('Surface (m²)'),
-                  const SizedBox(height: 6),
-                  ShadInput(
-                    controller: surfaceController,
-                    placeholder: const Text('e.g., 50'),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            _row3(
+              _fieldNum(_minStayCtrl, 'Min nuits'),
+              _fieldNum(_maxStayCtrl, 'Max nuits'),
+              _fieldText(_timezoneCtrl, 'Timezone', helper: 'IANA (ex. Europe/Zurich)'),
+            ),
 
-                  const SizedBox(height: 16),
-                  const Text('Distance to Public Transport (km)'),
-                  const SizedBox(height: 6),
-                  ShadInput(
-                    placeholder: const Text('e.g., 0.5'),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      amenityValues.value = {
-                        ...amenityValues.value,
-                        'dist_public_transport_km':
-                            double.tryParse(value) ?? 0.0,
-                      };
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Proximity to HES-SO (km)'),
-                  const SizedBox(height: 6),
-                  ShadInput(
-                    placeholder: const Text('e.g., 1.2'),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      amenityValues.value = {
-                        ...amenityValues.value,
-                        'proxim_hesso_km': double.tryParse(value) ?? 0.0,
-                      };
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Number of Rooms'),
-                  const SizedBox(height: 6),
-                  ShadInput(
-                    placeholder: const Text('e.g., 3'),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      amenityValues.value = {
-                        ...amenityValues.value,
-                        'num_rooms': int.tryParse(value) ?? 0,
-                      };
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: boolAmenities.entries.map((amenity) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Row(
-                          children: [
-                            ShadSwitch(
-                              value:
-                                  selectedAmenities.value[amenity.key] ?? false,
-                              onChanged: (bool value) {
-                                selectedAmenities.value = {
-                                  ...selectedAmenities.value,
-                                  amenity.key: value,
-                                };
-                              },
-                            ),
-                            const SizedBox(width: 8),
-                            Text(amenity.value),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Images'),
-                  const SizedBox(height: 6),
-                  ShadButton(
-                    onPressed: () async {
-                      FilePickerResult? result = await FilePicker.platform
-                          .pickFiles(allowMultiple: true, type: FileType.image);
-                      if (result != null) {
-                        selectedFiles.value = result.files;
-                      }
-                    },
-                    child: const Text('Select Images'),
-                  ),
-                  const SizedBox(height: 8),
-                  if (selectedFiles.value.isNotEmpty)
-                    Text(
-                      'Selected files: ${selectedFiles.value.length}',
-                      style: theme.textTheme.small,
-                    ),
-                ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
+                label: Text(_saving ? 'Enregistrement…' : 'Enregistrer'),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
-}
 
-class _AddressSearchDialog extends HookWidget {
-  const _AddressSearchDialog();
+  // --- Small UI helpers ---
+  String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null;
 
-  @override
-  Widget build(BuildContext context) {
-    final searchController = useTextEditingController();
-    final searchResults = useState<List<AddressResult>>([]);
-    final isLoading = useState<bool>(false);
-    final hasSearched = useState<bool>(
-      false,
-    ); // Track if a search has been attempted
-    final timer = useRef<Timer?>(null);
+  Widget _sectionTitle(String t) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Text(
+          t,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      );
 
-    // Clean up the timer when the widget is disposed to prevent memory leaks
-    useEffect(() {
-      return () => timer.value?.cancel();
-    }, const []);
+  Widget _row2(Widget a, Widget b) => Row(
+        children: [
+          Expanded(child: a),
+          const SizedBox(width: 12),
+          Expanded(child: b),
+        ],
+      );
 
-    Future<void> performSearch(String query) async {
-      // Don't search for very short queries to save API calls
-      if (query.length < 3) {
-        searchResults.value = [];
-        isLoading.value = false;
-        hasSearched.value = true;
-        return;
-      }
-      isLoading.value = true;
-      hasSearched.value = true; // Mark that a search has been attempted
-      final results = await _searchAddresses(query);
-      // Ensure the widget is still in the tree before updating state
-      if (context.mounted) {
-        searchResults.value = results;
-        isLoading.value = false;
-      }
-    }
+  Widget _row3(Widget a, Widget b, Widget c) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: a),
+          const SizedBox(width: 12),
+          Expanded(child: b),
+          const SizedBox(width: 12),
+          Expanded(child: c),
+        ],
+      );
 
-    // This function debounces the search. It starts a timer and only
-    // calls the search function after the user has stopped typing.
-    void onSearchChanged(String query) {
-      if (timer.value?.isActive ?? false) timer.value!.cancel();
-      timer.value = Timer(const Duration(milliseconds: 500), () {
-        performSearch(query);
-      });
-    }
+  Widget _fieldText(TextEditingController c, String label,
+      {String? helper, String? Function(String?)? validator, int maxLines = 1}) {
+    return TextFormField(
+      controller: c,
+      decoration: InputDecoration(
+        labelText: label,
+        helperText: helper,
+        border: const OutlineInputBorder(),
+      ),
+      validator: validator,
+      maxLines: maxLines,
+    );
+  }
 
-    return Dialog(
+  Widget _fieldMulti(TextEditingController c, String label,
+      {int maxLines = 3, String? Function(String?)? validator}) {
+    return TextFormField(
+      controller: c,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      maxLines: maxLines,
+      validator: validator,
+    );
+  }
+
+  Widget _fieldNum(TextEditingController c, String label,
+      {String? Function(String?)? validator}) {
+    return TextFormField(
+      controller: c,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
+      validator: validator,
+    );
+  }
+
+  Widget _dropdownStatus() {
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: 'Statut',
+        border: OutlineInputBorder(),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _status,
+          isExpanded: true,
+          onChanged: (v) => setState(() => _status = v ?? 'draft'),
+          items: _statusValues
+              .map((s) => DropdownMenuItem<String>(
+                    value: s,
+                    child: Text(s),
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _windowsListCard(ShadThemeData theme) {
+    return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ShadInput(
-              controller: searchController,
-              placeholder: const Text('Search for an address'),
-              onChanged: onSearchChanged, // Use the new debounced function
-            ),
-            const SizedBox(height: 16),
-            // Constrain the height to prevent the dialog from resizing awkwardly
-            SizedBox(
-              height: 300,
-              child: Builder(
-                builder: (context) {
-                  if (isLoading.value) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  // Show a helpful message before the first search
-                  if (!hasSearched.value) {
-                    return const Center(
-                      child: Text('Start typing to find an address.'),
-                    );
-                  }
-                  if (searchResults.value.isEmpty) {
-                    return const Center(child: Text('No results found.'));
-                  }
-                  // The ListView is now safely constrained
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: searchResults.value.length,
-                    itemBuilder: (context, index) {
-                      final result = searchResults.value[index];
-                      return ListTile(
-                        title: Text(result.displayName),
-                        onTap: () {
-                          Navigator.pop(context, result);
-                        },
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-            ShadButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-          ],
+        padding: const EdgeInsets.all(12),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _windows.asMap().entries.map((e) {
+            final i = e.key;
+            final w = e.value;
+            final start = "${w.start.year.toString().padLeft(4, '0')}-${w.start.month.toString().padLeft(2, '0')}-${w.start.day.toString().padLeft(2, '0')}";
+            final end = "${w.end.year.toString().padLeft(4, '0')}-${w.end.month.toString().padLeft(2, '0')}-${w.end.day.toString().padLeft(2, '0')}";
+            return Chip(
+              label: Text("$start → $end (end exclusif)"),
+              onDeleted: () {
+                setState(() => _windows.removeAt(i));
+              },
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _blackoutsListCard(ShadThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _blackoutDates.asMap().entries.map((e) {
+            final i = e.key;
+            final d = e.value;
+            return Chip(
+              label: Text("Blackout $d"),
+              onDeleted: () {
+                setState(() => _blackoutDates.removeAt(i));
+              },
+            );
+          }).toList(),
         ),
       ),
     );
