@@ -77,7 +77,7 @@ class _CreateListingFabState extends State<_CreateListingFab> {
             );
           },
           icon: const Icon(Icons.add_home_work_outlined),
-          label: const Text('Nouvelle annonce'),
+          label: const Text('New Listing'),
         );
       },
     );

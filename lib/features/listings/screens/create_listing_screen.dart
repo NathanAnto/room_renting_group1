@@ -46,10 +46,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   double? _lng;
   double? _distPublicTransportKm;
   double? _distNearestHesKm;
-
-  // --- REMOVED ---
-  // List<OsmPlace> _suggestions = [];
-  // Timer? _debounce;
+  OsmPlace? _selectedPlace; // <--- ajouté
 
   // --- Étape 2 (après prédiction) ---
   final _titleCtrl = TextEditingController();
@@ -62,7 +59,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   // Disponibilités
   final List<AvailabilityWindow> _windows = [];
-  final List<String> _blackoutDates = [];
   final _minStayCtrl = TextEditingController();
   final _maxStayCtrl = TextEditingController();
   final _timezoneCtrl = TextEditingController(text: 'Europe/Zurich');
@@ -113,7 +109,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   String _fmt2(double? v) => v == null ? '—' : v.toStringAsFixed(2);
 
-  String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null;
+  String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'Required fields' : null;
 
   String _guessImageContentType(PlatformFile f) {
     final ext = (f.extension ?? '').toLowerCase();
@@ -133,16 +129,16 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     }
   }
 
-  // ------------------- Étape 1 : Nominatim -------------------
-  
-  // --- REMOVED ---
-  // The _onAddressChanged, _searchNominatim, and _selectPlace methods are now inside AddressSearchField.
-  // We replace them with a single callback handler.
+  // Extrait la ville depuis un OsmPlace (priorité city > town > village)
+  String _extractCityFromOsm(OsmPlace p) {
+    final s = (p.city ?? p.town ?? p.village ?? '').trim();
+    return s;
+  }
 
-  // --- ADDED ---
-  /// Callback for when a place is selected in the AddressSearchField widget.
+  // ------------------- Étape 1 : Nominatim -------------------
   Future<void> _onPlaceSelected(OsmPlace p) async {
     // This logic was previously in _selectPlace
+    _selectedPlace = p;
     _addressCtrl.text = p.displayName;
     _lat = p.lat;
     _lng = p.lon;
@@ -236,18 +232,17 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     setState(() => _predicting = true);
     try {
       final api = PricePredictionApi();
-      final price = 0;
-      // await api.predictPrice(
-      //   surfaceM2: _pDouble(_surfaceCtrl.text),
-      //   numRooms: _pInt(_roomsCtrl.text),
-      //   type: _typeFromRooms, // auto: room / entire_home
-      //   isFurnished: _isFurnished,
-      //   wifiIncl: _wifiIncl,
-      //   chargesIncl: _chargesIncl,
-      //   carPark: _carPark,
-      //   distPublicTransportKm: _distPublicTransportKm ?? 0.0,
-      //   proximHessoKm: _distNearestHesKm ?? 0.0,
-      // ); // double? possible
+      final price = await api.predictPrice(
+        surfaceM2: _pDouble(_surfaceCtrl.text),
+        numRooms: _pInt(_roomsCtrl.text),
+        type: _typeFromRooms, // auto: room / entire_home
+        isFurnished: _isFurnished,
+        wifiIncl: _wifiIncl,
+        chargesIncl: _chargesIncl,
+        carPark: _carPark,
+        distPublicTransportKm: _distPublicTransportKm ?? 0.0,
+        proximHessoKm: _distNearestHesKm ?? 0.0,
+      ); // double? possible
 
       if (!mounted) return;
 
@@ -261,7 +256,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Échec de la prédiction: $e')),
+        SnackBar(content: Text('Prediction failed: $e')),
       );
     } finally {
       if (mounted) setState(() => _predicting = false);
@@ -303,11 +298,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         setState(() => _images.add(url));
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload image échoué: $e')),
+          SnackBar(content: Text('Upload image failed: $e')),
         );
       }
     }
   }
+
+  // ------------------- Disponibilités -------------------
+// lib/features/listings/screens/create_listing_screen.dart
 
   // ------------------- Disponibilités -------------------
   Future<void> _pickWindow() async {
@@ -331,32 +329,17 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     if (end == null) return;
 
     setState(() {
-      _windows.add(AvailabilityWindow(start: start.toUtc(), end: end.toUtc()));
+      final utcStart = DateTime.utc(start.year, start.month, start.day);
+      final utcEnd = DateTime.utc(end.year, end.month, end.day);
+      _windows.add(AvailabilityWindow(start: utcStart, end: utcEnd));
     });
-  }
-
-  Future<void> _pickBlackout() async {
-    final now = DateTime.now();
-    final d = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: DateTime(now.year - 1, 1, 1),
-      lastDate: DateTime(now.year + 3, 12, 31),
-      helpText: 'Ajouter un blackout',
-    );
-    if (d == null) return;
-    final key =
-        "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
-    if (!_blackoutDates.contains(key)) {
-      setState(() => _blackoutDates.add(key));
-    }
   }
 
   // ------------------- Save -------------------
   Future<void> _save() async {
     if (!_hasPrediction) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Proposez un prix avant d’enregistrer.')),
+        const SnackBar(content: Text('Propose a price before saving.')),
       );
       return;
     }
@@ -364,6 +347,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     final ownerId = user?.uid ?? '';
+
+    // ville auto depuis _selectedPlace (si renseignée)
+    final inferredCity = _selectedPlace == null ? '' : _extractCityFromOsm(_selectedPlace!);
 
     final listing = Listing(
       id: null,
@@ -374,7 +360,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       rentPerMonth: _pDouble(_rentCtrl.text),
       predictedRentPerMonth:
           _predictedCtrl.text.trim().isEmpty ? 0 : _pDouble(_predictedCtrl.text),
-      city: '', // optionnel (peut être inféré si tu veux)
+      city: inferredCity,
       addressLine: _addressCtrl.text.trim(),
       lat: _lat ?? 0,
       lng: _lng ?? 0,
@@ -384,7 +370,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       numRooms: _pInt(_roomsCtrl.text),
       availability: ListingAvailability(
         windows: _windows,
-        blackoutDates: _blackoutDates,
         minStayNights: _minStayCtrl.text.isEmpty ? null : _pInt(_minStayCtrl.text),
         maxStayNights: _maxStayCtrl.text.isEmpty ? null : _pInt(_maxStayCtrl.text),
         timezone: _timezoneCtrl.text.trim().isEmpty
@@ -410,13 +395,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       await _svc.addListing(listing);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Listing créé avec succès.')),
+        const SnackBar(content: Text('Listing creating succesfully.')),
       );
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e')),
+        SnackBar(content: Text('Error: $e')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -427,13 +412,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Créer un listing'), centerTitle: true),
+      appBar: AppBar(title: const Text('Create a listing'), centerTitle: true),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _section('Étape 1 · Estimation rapide', [
+            _section('Step 1 · Quick estimation', [
               // --- MODIFIED ---
               // Replaced the old _addressField() method call with the new widget.
               AddressSearchField(
@@ -445,7 +430,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    'Coordonnées: ${_lat!.toStringAsFixed(6)}, ${_lng!.toStringAsFixed(6)}',
+                    'Coordinates: ${_lat!.toStringAsFixed(6)}, ${_lng!.toStringAsFixed(6)}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -465,7 +450,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                   Expanded(
                     child: _number(
                       _roomsCtrl,
-                      'Nombre de pièces',
+                      'Number of rooms',
                       validator: _req,
                       invalidatePredictionOnChange: true, // <-- invalide
                       refreshTypeOnChange: true, // <-- met à jour le chip type
@@ -486,17 +471,17 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 runSpacing: 4,
                 children: [
                   FilterChip(
-                    label: const Text('Meublé'),
+                    label: const Text('Furnished'),
                     selected: _isFurnished,
                     onSelected: (v) => setState(() => _isFurnished = v),
                   ),
                   FilterChip(
-                    label: const Text('WiFi inclus'),
+                    label: const Text('WiFi included'),
                     selected: _wifiIncl,
                     onSelected: (v) => setState(() => _wifiIncl = v),
                   ),
                   FilterChip(
-                    label: const Text('Charges incluses'),
+                    label: const Text('Charges included'),
                     selected: _chargesIncl,
                     onSelected: (v) => setState(() => _chargesIncl = v),
                   ),
@@ -511,11 +496,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _readonly('Distance TP la plus proche (km)', _fmt2(_distPublicTransportKm)),
+                    child: _readonly('Distance to closest public transport (km)', _fmt2(_distPublicTransportKm)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _readonly('Proximité HES (km)', _fmt2(_distNearestHesKm)),
+                    child: _readonly('Proximity HES (km)', _fmt2(_distNearestHesKm)),
                   ),
                 ],
               ),
@@ -528,7 +513,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       ? const SizedBox(
                           width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.auto_awesome),
-                  label: Text(_predicting ? 'Calcul…' : 'Proposer un prix'),
+                  label: Text(_predicting ? 'Calculating…' : 'Propose a price'),
                 ),
               ),
               if (_hasPrediction) ...[
@@ -538,14 +523,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               ],
             ]),
             if (_hasPrediction)
-              _section('Étape 2 · Détails de l’annonce', [
-                _text(_titleCtrl, 'Titre *', validator: _req),
+              _section('Step 2 · Listing details', [
+                _text(_titleCtrl, 'Title *', validator: _req),
                 _multiline(_descCtrl, 'Description *', validator: _req),
                 Row(
                   children: [
-                    Expanded(child: _number(_rentCtrl, 'Loyer CHF/mois *', validator: _req)),
+                    Expanded(child: _number(_rentCtrl, 'Rent CHF/month *', validator: _req)),
                     const SizedBox(width: 12),
-                    Expanded(child: _number(_predictedCtrl, 'Loyer suggéré CHF/mois', readOnly: true)),
+                    Expanded(child: _number(_predictedCtrl, 'Suggested rent CHF/month', readOnly: true)),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -566,7 +551,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.save),
-                    label: Text(_saving ? 'Enregistrement…' : 'Enregistrer'),
+                    label: Text(_saving ? 'Saving' : 'Save Listing'),
                   ),
                 ),
               ]),
@@ -656,7 +641,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   Widget _dropdownStatus() {
     return InputDecorator(
-      decoration: const InputDecoration(labelText: 'Statut', border: OutlineInputBorder()),
+      decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _status,
@@ -679,7 +664,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             ElevatedButton.icon(
               onPressed: _pickAndUploadImages,
               icon: const Icon(Icons.upload),
-              label: const Text('Ajouter des images'),
+              label: const Text('Add images'),
             ),
             const SizedBox(width: 12),
             Text('${_images.length} image(s)'),
@@ -738,19 +723,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             ElevatedButton.icon(
               onPressed: _pickWindow,
               icon: const Icon(Icons.add),
-              label: const Text('Ajouter une fenêtre'),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: _pickBlackout,
-              icon: const Icon(Icons.event_busy),
-              label: const Text('Ajouter un blackout'),
+              label: const Text('Add a window'),
             ),
           ],
         ),
         const SizedBox(height: 8),
         if (_windows.isEmpty)
-          const Text('Aucune fenêtre ajoutée pour l’instant.', style: TextStyle(color: Colors.grey)),
+          const Text('No window has been added yet.', style: TextStyle(color: Colors.grey)),
         if (_windows.isNotEmpty)
           Wrap(
             spacing: 8,
@@ -764,9 +743,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _number(_minStayCtrl, 'Min nuits')),
+            Expanded(child: _number(_minStayCtrl, 'Min nights')),
             const SizedBox(width: 12),
-            Expanded(child: _number(_maxStayCtrl, 'Max nuits')),
+            Expanded(child: _number(_maxStayCtrl, 'Max nights')),
             const SizedBox(width: 12),
             Expanded(child: _text(_timezoneCtrl, 'Timezone', helper: 'IANA (ex. Europe/Zurich)')),
           ],
@@ -774,7 +753,4 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       ],
     );
   }
-
-  // --- REMOVED ---
-  // The _addressField widget has been completely replaced by the new AddressSearchField widget.
 }

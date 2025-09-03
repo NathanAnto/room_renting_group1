@@ -1,12 +1,10 @@
 /// Listing availability model (pure Dart, backend-agnostic).
 ///
 /// - Fenêtres sur [start, end) (fin exclusive), dates normalisées à minuit UTC.
-/// - Jours d'indisponibilité ("blackoutDates") au format "YYYY-MM-DD".
 /// - monthsIndex: liste de "YYYY-MM" couverts par au moins une fenêtre (utile pour les filtres).
 class ListingAvailability {
   final List<AvailabilityWindow> windows;
   /// Jours indisponibles sous forme 'YYYY-MM-DD' (UTC)
-  final List<String> blackoutDates;
   final int? minStayNights;
   final int? maxStayNights;
   final String timezone;           // ex: "Europe/Zurich"
@@ -14,7 +12,6 @@ class ListingAvailability {
 
   ListingAvailability({
     required this.windows,
-    this.blackoutDates = const [],
     this.minStayNights,
     this.maxStayNights,
     this.timezone = "Europe/Zurich",
@@ -26,8 +23,7 @@ class ListingAvailability {
     final todayUtc = _utcMidnight(DateTime.now().toUtc());
     final todayKey = _dateKey(todayUtc);
     final inAWindow = windows.any((w) => w.containsDateUtc(todayUtc));
-    final isBlackout = blackoutDates.contains(todayKey);
-    return inAWindow && !isBlackout;
+    return inAWindow;
   }
 
   /// "Prochaine dispo" (today si déjà dispo).
@@ -40,7 +36,6 @@ class ListingAvailability {
         .toList()
       ..sort();
     return futureStarts.isEmpty ? null : futureStarts.first;
-    // (Option: si tu veux skipper les blackout immédiats, on peut raffiner.)
   }
 
   /// Recalcule monthsIndex à partir des fenêtres (à appeler avant save).
@@ -48,7 +43,6 @@ class ListingAvailability {
     final idx = _buildMonthsIndex(windows);
     return ListingAvailability(
       windows: windows,
-      blackoutDates: blackoutDates,
       minStayNights: minStayNights,
       maxStayNights: maxStayNights,
       timezone: timezone,
@@ -61,9 +55,6 @@ class ListingAvailability {
       windows: (map['windows'] as List<dynamic>? ?? [])
           .map((m) => AvailabilityWindow.fromMap(Map<String, dynamic>.from(m)))
           .toList(),
-      blackoutDates: (map['blackoutDates'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList(),
       minStayNights: (map['minStayNights'] as num?)?.toInt(),
       maxStayNights: (map['maxStayNights'] as num?)?.toInt(),
       timezone: (map['timezone'] as String?) ?? "Europe/Zurich",
@@ -75,7 +66,6 @@ class ListingAvailability {
 
   Map<String, dynamic> toMap() => {
         'windows': windows.map((w) => w.toMap()).toList(),
-        'blackoutDates': blackoutDates,
         'minStayNights': minStayNights,
         'maxStayNights': maxStayNights,
         'timezone': timezone,
