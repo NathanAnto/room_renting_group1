@@ -9,12 +9,20 @@ class ListingCard extends StatelessWidget {
   final Listing listing;
   final VoidCallback? onViewDetails;
   final VoidCallback? onContactHost;
+  final bool showEditButton;
+  final VoidCallback? onEdit;
+  final bool showDeleteButton;
+  final VoidCallback? onDelete;
 
   const ListingCard({
     super.key,
     required this.listing,
     this.onViewDetails,
     this.onContactHost,
+    this.showEditButton = false,
+    this.onEdit,
+    this.showDeleteButton = false,
+    this.onDelete, 
   });
 
   @override
@@ -41,10 +49,20 @@ class ListingCard extends StatelessWidget {
             child: const Text('View Details'),
           ),
           const SizedBox(width: 8),
-          ShadButton(
-            onPressed: onContactHost,
-            child: const Text('Contact Host'),
-          ),
+          if (showEditButton) ...[
+            ShadButton.secondary(
+              onPressed: onEdit,
+              child: const Text('Edit'),
+            ),
+            const SizedBox(width: 8),
+          ],
+          if (showDeleteButton) ...[
+            ShadButton.destructive(
+              onPressed: onDelete,
+              child: const Text('Delete'),
+            ),
+            const SizedBox(width: 8),
+          ],
         ],
       ),
       child: Column(

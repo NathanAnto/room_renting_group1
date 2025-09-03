@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// Listing availability model (pure Dart, backend-agnostic).
 ///
 /// - Fenêtres sur [start, end) (fin exclusive), dates normalisées à minuit UTC.
@@ -38,17 +40,23 @@ class ListingAvailability {
     return futureStarts.isEmpty ? null : futureStarts.first;
   }
 
-  /// Recalcule monthsIndex à partir des fenêtres (à appeler avant save).
-  ListingAvailability withRefreshedMonthsIndex() {
-    final idx = _buildMonthsIndex(windows);
+  ListingAvailability copyWith({
+    List<AvailabilityWindow>? windows,
+    List<String>? blackoutDates,
+    int? minStayNights,
+    int? maxStayNights,
+    String? timezone,
+    List<String>? monthsIndex,
+  }) {
     return ListingAvailability(
-      windows: windows,
-      minStayNights: minStayNights,
-      maxStayNights: maxStayNights,
-      timezone: timezone,
-      monthsIndex: idx,
+      windows: windows ?? this.windows,
+      minStayNights: minStayNights ?? this.minStayNights,
+      maxStayNights: maxStayNights ?? this.maxStayNights,
+      timezone: timezone ?? this.timezone,
+      monthsIndex: monthsIndex ?? this.monthsIndex,
     );
   }
+
 
   factory ListingAvailability.fromMap(Map<String, dynamic> map) {
     return ListingAvailability(
@@ -71,6 +79,18 @@ class ListingAvailability {
         'timezone': timezone,
         'monthsIndex': monthsIndex,
       };
+
+  /// Recalcule monthsIndex à partir des fenêtres (à appeler avant save).
+  ListingAvailability withRefreshedMonthsIndex() {
+    final idx = _buildMonthsIndex(windows);
+    return ListingAvailability(
+      windows: windows,
+      minStayNights: minStayNights,
+      maxStayNights: maxStayNights,
+      timezone: timezone,
+      monthsIndex: idx,
+    );
+  }
 
   // --- Helpers ---
   static DateTime _utcMidnight(DateTime d) => DateTime.utc(d.year, d.month, d.day);
