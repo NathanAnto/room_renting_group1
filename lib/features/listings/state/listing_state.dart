@@ -1,4 +1,10 @@
 // lib/state/listing_state.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:room_renting_group1/features/listings/state/filter_state.dart';
+import '../../../core/models/listing.dart';
+import '../../../core/services/listing_service.dart';
+import '../screens/listings_screen.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -73,10 +79,34 @@ class ListingsNotifier extends StateNotifier<AsyncValue<List<Listing>>> {
   }
 }
 
-final listingsProvider =
-    StateNotifierProvider<ListingsNotifier, AsyncValue<List<Listing>>>(
-  (ref) => ListingsNotifier(),
-);
+// 2. The provider that exposes the ListingsNotifier.
+//    This is the entry point for widgets to access the listings state.
+final listingsProvider = StreamProvider<List<Listing>>((ref) {
+  // Watch the filter options
+  final filters = ref.watch(filterOptionsProvider);
+  final listingService = ListingService(); // Assuming you have a service instance
+
+  // Get amenities that are true
+  final selectedAmenities = filters.amenities?.entries
+    .where((entry) => entry.value == true)
+    .map((entry) => entry.key)
+    .toList();
+    
+  return listingService.getFilteredListings(
+    city: filters.city,
+    type: filters.type,
+    availableFrom: filters.availableFrom,
+    availableTo: filters.availableTo,
+    minRent: filters.priceRange?.start,
+    maxRent: filters.priceRange?.end,
+    minSurface: filters.surfaceRange?.start,
+    maxSurface: filters.surfaceRange?.end,
+    maxProximHessoDistance: filters.maxHessoDist,
+    maxPublicTransportDistance: filters.maxTransportDist,
+    amenities: selectedAmenities,
+    // Add other filters like surface and numRooms if needed in getFilteredListings
+  );
+});
 
 // Charger un listing unique
 final singleListingProvider =

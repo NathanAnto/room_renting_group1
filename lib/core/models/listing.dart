@@ -98,16 +98,70 @@ class Listing {
       numRooms: _toInt(data['num_rooms'] ?? data['numRooms']),
       availability: ListingAvailability.fromMap(availMap),
       amenities: Map<String, bool>.from(
-        (data['amenities'] ?? <String, dynamic>{})
-            .map((k, v) => MapEntry(k.toString(), v == true)),
+        (data['amenities'] ?? <String, dynamic>{}).map(
+          (k, v) => MapEntry(k.toString(), v == true),
+        ),
       ),
       status: (data['status'] ?? 'draft') as String,
-      createdAt: _toDate(data['createdAt']) ?? DateTime.now(),
-      // tolère "updateAt" (ancien nom)
-      updatedAt: _toDate(data['updatedAt'] ?? data['updateAt']) ?? DateTime.now(),
+      createdAt: (data['createdAt'] is Timestamp)
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      updatedAt: (data['updatedAt'] is Timestamp)
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
       images: List<String>.from(
         (data['images'] ?? const <dynamic>[]).map((e) => e.toString()),
       ),
+    );
+  }
+
+  Listing copyWith({
+    String? id,
+    String? ownerId,
+    String? title,
+    String? description,
+    String? type,
+    double? rentPerMonth,
+    double? predictedRentPerMonth,
+    String? city,
+    String? addressLine,
+    double? lat,
+    double? lng,
+    double? surface,
+    double? distanceToPublicTransportKm,
+    double? proximHessoKm,
+    int? numRooms,
+    ListingAvailability? availability,
+    Map<String, bool>? amenities,
+    String? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    List<String>? images,
+  }) {
+    return Listing(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      type: type ?? this.type,
+      rentPerMonth: rentPerMonth ?? this.rentPerMonth,
+      predictedRentPerMonth:
+          predictedRentPerMonth ?? this.predictedRentPerMonth,
+      city: city ?? this.city,
+      addressLine: addressLine ?? this.addressLine,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+      surface: surface ?? this.surface,
+      distanceToPublicTransportKm:
+          distanceToPublicTransportKm ?? this.distanceToPublicTransportKm,
+      proximHessoKm: proximHessoKm ?? this.proximHessoKm,
+      numRooms: numRooms ?? this.numRooms,
+      availability: availability ?? this.availability,
+      amenities: amenities ?? this.amenities,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      images: images ?? this.images,
     );
   }
 
@@ -124,9 +178,14 @@ class Listing {
       'lat': lat,
       'lng': lng,
       'surface': surface,
-      'availability': availability,
+      'dist_public_transport_km': distanceToPublicTransportKm,
+      'proxim_hesso_km': proximHessoKm,
+      'num_rooms': numRooms,
+      'availability': availability.toMap(),
       'amenities': amenities,
       'status': status,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
       'images': images,
     };
   }
@@ -169,5 +228,36 @@ class Listing {
       }
     }
     return null;
+  }
+}
+
+// ======= Modèle léger pour Nominatim =======
+class OsmPlace {
+  final String displayName;
+  final double lat;
+  final double lon;
+  final String? city;
+  final String? town;
+  final String? village;
+
+  OsmPlace({
+    required this.displayName,
+    required this.lat,
+    required this.lon,
+    this.city,
+    this.town,
+    this.village,
+  });
+
+  factory OsmPlace.fromJson(Map<String, dynamic> json) {
+    final addr = json['address'] as Map<String, dynamic>? ?? {};
+    return OsmPlace(
+      displayName: json['display_name']?.toString() ?? '',
+      lat: double.tryParse(json['lat']?.toString() ?? '') ?? 0,
+      lon: double.tryParse(json['lon']?.toString() ?? '') ?? 0,
+      city: addr['city']?.toString(),
+      town: addr['town']?.toString(),
+      village: addr['village']?.toString(),
+    );
   }
 }

@@ -1,29 +1,78 @@
-// lib/features/listings/widgets/filter_bottom_sheet.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
-import 'package:room_renting_group1/core/models/listing.dart'; // For amenitiesLabels
+import 'package:room_renting_group1/core/models/listing.dart';
+import '../../../core/models/filter_options.dart';
+import '../state/filter_state.dart';
 
-class FilterBottomSheet extends StatefulWidget {
+class FilterBottomSheet extends ConsumerStatefulWidget {
   const FilterBottomSheet({super.key});
 
   @override
-  State<FilterBottomSheet> createState() => _FilterBottomSheetState();
+  ConsumerState<FilterBottomSheet> createState() => _FilterBottomSheetState();
 }
 
-class _FilterBottomSheetState extends State<FilterBottomSheet> {
+class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
+  // --- ADD THIS LINE ---
+  Key _formControlsKey = UniqueKey();
+
   // State variables for filters
-  RangeValues _priceRange = const RangeValues(500, 2500);
+  late RangeValues _priceRange;
+  DateTime? _availableFrom;
+  DateTime? _availableTo;
+  String? _selectedCity;
   String? _selectedType;
-  RangeValues _surfaceRange = const RangeValues(20, 100);
-  double _maxTransportDist = 5;
-  double _maxHessoDist = 5;
-  RangeValues _numRoomsRange = const RangeValues(1, 5);
-  final Map<String, bool> _amenities = {
-    "is_furnished": false,
-    "wifi_incl": false,
-    "charges_incl": false,
-    "car_park": false,
-  };
+  late RangeValues _surfaceRange;
+  late double _maxTransportDist;
+  late double _maxHessoDist;
+  late Map<String, bool> _amenities;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize local state from the provider's current state
+    final currentFilters = ref.read(filterOptionsProvider);
+    _priceRange = currentFilters.priceRange ?? const RangeValues(500, 2500);
+    _availableFrom = currentFilters.availableFrom;
+    _availableTo = currentFilters.availableTo;
+    _selectedCity = currentFilters.city;
+    _selectedType = currentFilters.type;
+    _surfaceRange = currentFilters.surfaceRange ?? const RangeValues(20, 100);
+    _maxTransportDist = currentFilters.maxTransportDist ?? 1;
+    _maxHessoDist = currentFilters.maxHessoDist ?? 5;
+    _amenities = currentFilters.amenities ??
+        {
+          "is_furnished": false,
+          "wifi_incl": false,
+          "charges_incl": false,
+          "car_park": false,
+        };
+  }
+
+  /// Resets the local filter state to the default values.
+  void _resetToDefaults() {
+    setState(() {
+      // --- ADD THIS LINE ---
+      _formControlsKey = UniqueKey();
+
+      final currentFilters = ref.read(filterOptionsProvider);
+      _priceRange = const RangeValues(500, 2500);
+      _availableFrom = null;
+      _availableTo = null;
+      // Keep the externally set city from the home screen search
+      _selectedCity = currentFilters.city;
+      _selectedType = null;
+      _surfaceRange = const RangeValues(20, 100);
+      _maxTransportDist = 1;
+      _maxHessoDist = 5;
+      _amenities = {
+        "is_furnished": false,
+        "wifi_incl": false,
+        "charges_incl": false,
+        "car_park": false,
+      };
+    });
+  }
 
   // Helper method to build a section with a title
   Widget _buildFilterSection(String title, Widget child) {
@@ -54,15 +103,26 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Filters', style: theme.textTheme.h4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Filters', style: theme.textTheme.h4),
+              ShadButton.ghost(
+                onPressed: _resetToDefaults,
+                child: const Text('Reset'),
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
           Expanded(
             child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // --- Price Filter ---
-                  _buildFilterSection(
+        // --- MODIFY THIS WIDGET ---
+        child: Column(
+          key: _formControlsKey,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- Price Filter ---
+            _buildFilterSection(
                     'Price Range (CHF ${_priceRange.start.round()} - ${_priceRange.end.round()})',
                     RangeSlider(
                       min: 0,
@@ -70,6 +130,21 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                       values: _priceRange,
                       onChanged: (values) =>
                           setState(() => _priceRange = values),
+                    ),
+                  ),
+                  _buildFilterSection(
+                    'Reservation Dates',
+                    Center(
+                      child: ShadCalendar.range(
+                        onChanged: (range) {
+                          if (range != null) {
+                            setState(() {
+                              _availableFrom = range.start;
+                              _availableTo = range.end;
+                            });
+                          }
+                        },
+                      ),
                     ),
                   ),
 
@@ -88,12 +163,12 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                             },
                             items: const [
                               ShadRadio<String>(
-                                value: 'Apartment',
-                                label: Text('Apartment'),
+                                value: 'entire_home',
+                                label: Text('Entire Home'),
                               ),
                               SizedBox(height: 8),
                               ShadRadio<String>(
-                                value: 'Room',
+                                value: 'room',
                                 label: Text('Room'),
                               ),
                             ],
@@ -128,8 +203,9 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     'Max Distance to HES-SO (${_maxHessoDist.toStringAsFixed(1)} km)',
                     ShadSlider(
                       min: 0,
-                      max: 10,
+                      max: 50,
                       initialValue: _maxHessoDist,
+                      // controller: ,
                       onChanged: (value) =>
                           setState(() => _maxHessoDist = value),
                     ),
@@ -138,7 +214,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     'Max Distance to Public Transport (${_maxTransportDist.toStringAsFixed(1)} km)',
                     ShadSlider(
                       min: 0,
-                      max: 50,
+                      max: 2,
                       initialValue: _maxTransportDist,
                       onChanged: (value) =>
                           setState(() => _maxTransportDist = value),
@@ -172,17 +248,43 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          ShadButton(
-            width: double.infinity,
-            onPressed: () {
-              // TODO: Pass filter data back to the listings screen
-              print('Applying filters...');
-              Navigator.of(context).pop();
-            },
-            child: const Text('Apply Filters'),
+          Row(
+            children: [
+              const SizedBox(width: 8),
+              Expanded(
+                child: ShadButton(
+                  width: double.infinity,
+                  onPressed: () {
+                    // Create a new FilterOptions object from the local state
+                    final newFilters = FilterOptions(
+                      priceRange: _priceRange,
+                      availableFrom: _availableFrom,
+                      availableTo: _availableTo,
+                      city: _selectedCity,
+                      type: _selectedType,
+                      surfaceRange: _surfaceRange,
+                      maxTransportDist: _maxTransportDist,
+                      maxHessoDist: _maxHessoDist,
+                      amenities: _amenities,
+                    );
+                    // Update the provider with the new state
+                    ref
+                        .read(filterOptionsProvider.notifier)
+                        .updateFilters(newFilters);
+
+                    // Close the bottom sheet
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Apply Filters'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 }
+
+
+
