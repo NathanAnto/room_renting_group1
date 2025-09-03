@@ -9,6 +9,7 @@ import '../../../core/models/listing.dart';
 import '../../../core/models/ListingAvailability.dart';
 import '../widgets/transport_widget.dart';
 import '../widgets/places_widget.dart';
+import '../widgets/booking_planner_button.dart';
 
 class SingleListingScreen extends StatelessWidget {
   final Listing listing;
@@ -70,6 +71,7 @@ class SingleListingScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _InfoCard(listing: listing),
             ),
+            BookingPlannerButton(listing: listing),
 
             const SizedBox(height: 16),
 
