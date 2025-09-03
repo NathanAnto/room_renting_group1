@@ -3,9 +3,57 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:room_renting_group1/features/listings/screens/create_listing_screen.dart';
+import 'package:room_renting_group1/core/models/listing.dart';
+import 'package:room_renting_group1/core/services/auth_service.dart';
+import 'package:room_renting_group1/core/services/listing_service.dart';
+import 'package:room_renting_group1/features/listings/widgets/listing_card.dart';
+import 'package:room_renting_group1/features/listings/screens/edit_listing_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final AuthService _authService = AuthService();
+  final ListingService _listingService = ListingService();
+  String? _userRole;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserRole();
+  }
+
+  Future<void> _fetchUserRole() async {
+    final user = _authService.currentUser;
+    if (user == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('Profile')
+          .doc(user.uid)
+          .get();
+      final data = snap.data();
+      if (data != null && mounted) {
+        setState(() {
+          _userRole = (data['role'] ?? '').toString().toLowerCase();
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      // Handle error appropriately
+      print("Error fetching user role: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,10 +66,66 @@ class DashboardScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
       ),
-      body: const Center(
-        child: Text(''),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _buildBody(),
       floatingActionButton: const _CreateListingFab(),
+    );
+  }
+
+  Widget _buildBody() {
+    final user = _authService.currentUser;
+    if (user == null) {
+      return const Center(child: Text('Please log in.'));
+    }
+
+    if (_userRole == 'homeowner') {
+      return _buildHomeownerListings(user.uid);
+    } else if (_userRole == 'student') {
+      // Placeholder for student's booked listings
+      return const Center(child: Text('Your Booked Listings (coming soon!)'));
+    }
+    return const Center(child: Text('Welcome to your dashboard.'));
+  }
+
+  Widget _buildHomeownerListings(String ownerId) {
+    return StreamBuilder<List<Listing>>(
+      stream: _listingService.getListingsByOwner(ownerId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        final listings = snapshot.data ?? [];
+        if (listings.isEmpty) {
+          return const Center(child: Text('You have not created any listings yet.'));
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: listings.length,
+          itemBuilder: (context, index) {
+            final listing = listings[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: ListingCard(
+                listing: listing,
+                showEditButton: true,
+                onEdit: () {
+                   Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => EditListingScreen(listing: listing),
+                  ));
+                },
+                onViewDetails: () {
+                  // TODO: Navigate to listing details screen
+                },
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
