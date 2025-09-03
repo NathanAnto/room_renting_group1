@@ -62,7 +62,7 @@ class _RateStudentScreenState extends State<RateStudentScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Évaluation envoyée avec succès !'),
+            content: Text('Merci d\'avoir évalué votre locataire ! Votre évaluation a bien été enregistrée.'),
             backgroundColor: Colors.green,
           ),
         );

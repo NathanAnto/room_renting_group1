@@ -73,10 +73,10 @@ class _RateListingScreenState extends State<RateListingScreen> {
       await _reviewService.postReview(newReview);
 
       if (mounted) {
-        ShadToaster.of(context).show(
-          const ShadToast(
-            title: Text('Avis envoyé !'),
-            description: Text('Merci pour votre contribution.'),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Merci d\'avoir évalué votre bailleur ! Votre évaluation a bien été enregistrée.'),
+            backgroundColor: Colors.green,
           ),
         );
         context.pop();
