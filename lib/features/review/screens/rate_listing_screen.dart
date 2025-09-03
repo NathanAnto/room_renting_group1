@@ -79,7 +79,7 @@ class _RateListingScreenState extends State<RateListingScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        context.pop();
+        context.pop(true);
       }
     } catch (e, stackTrace) {
       debugPrint('Failed to post review: $e\n$stackTrace');

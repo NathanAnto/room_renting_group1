@@ -7,10 +7,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/models/listing.dart';
 import '../../../core/models/ListingAvailability.dart';
-// Importation du widget des avis
-import '../../review/widgets/listing_reviews_widget.dart';
 import '../widgets/transport_widget.dart';
 import '../widgets/places_widget.dart';
+import '../widgets/booking_planner_button.dart';
+
+// Import added for the review feature
+import '../../review/widgets/listing_reviews_widget.dart';
 
 class SingleListingScreen extends StatelessWidget {
   final Listing listing;
@@ -72,7 +74,7 @@ class SingleListingScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _InfoCard(listing: listing),
             ),
-
+            BookingPlannerButton(listing: listing),
             const SizedBox(height: 16),
 
             // --- Disponibilités (Calendrier) ---
@@ -94,21 +96,20 @@ class SingleListingScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
-            
             const SizedBox(height: 16),
             StudentListingItinerary(listing: listing),
             const SizedBox(height: 12),
             NearbyPlacesList(lat: listing.lat, lon: listing.lng, limit: 10),
 
-              const SizedBox(height: 16),
-
-            // --- Section des Avis ---
+            // ======================================================
+            // ## SECTION D'AVIS AJOUTÉE ICI ##
+            // ======================================================
+            const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _Section(
-                title: 'Avis des étudiants',
-                child: ListingReviewsWidget(propertyId: listing.id ?? ''),
+                title: 'Student Reviews',
+                child: ListingReviewsWidget(propertyId: listing.id!),
               ),
             ),
           ],
@@ -277,9 +278,11 @@ class _AvailabilitySection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
 
+
+
     if (availability.windows.isEmpty) {
       return _Section(
-        title: 'Availabilites',
+        title: 'Availabilities',
         child: Text(
           'No availabilities',
           style: TextStyle(color: theme.colorScheme.mutedForeground),
@@ -288,15 +291,12 @@ class _AvailabilitySection extends StatelessWidget {
     }
 
     return _Section(
-      title: 'Availabilites',
+      title: 'Availabilities',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _WindowsSummary(windows: availability.windows),
           const SizedBox(height: 8),
-          _Legend(),
-          const SizedBox(height: 12),
-          _AvailabilityCalendar(availability: availability)
         ],
       ),
     );
