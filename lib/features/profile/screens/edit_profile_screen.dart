@@ -1,7 +1,9 @@
+// lib/features/profile/screens/edit_profile_screen.dart
+
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:country_picker/country_picker.dart';
 import '../../../core/models/user_model.dart';
 import '../state/profile_providers.dart';
@@ -16,31 +18,29 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _selectedSchool;
   final List<String> _schools = [
-    'École de Design et Haute Ecole d\'Art (EDHEA)',
-    'Haute Ecole de Gestion (HEG)',
-    'Haute Ecole d\'Ingénierie (HEI)',
-    'Haute Ecole de Santé (HES)',
-    'Haute Ecole et Ecole Supérieure de Travail Social (HESTS)',
+    'School of Design and Art (EDHEA)',
+    'School of Management (HEG)',
+    'School of Engineering (HEI)',
+    'School of Health Sciences (HES)',
+    'School of Social Work (HESTS)',
   ];
 
   bool get _isStudent => widget.user.role == UserRole.student;
 
   late final TextEditingController _countryController;
-  late final TextEditingController _emailController;
   late final TextEditingController _displayNameController;
   late final TextEditingController _phoneController;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  Uint8List? _newProfileImageData;
 
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController(text: widget.user.email);
     _countryController = TextEditingController(text: widget.user.country);
     _displayNameController = TextEditingController(text: widget.user.displayName);
     _phoneController = TextEditingController(text: widget.user.phone);
 
-    // Pré-remplir l'école uniquement si l'utilisateur est étudiant
     if (_isStudent && widget.user.school != null && _schools.contains(widget.user.school)) {
       _selectedSchool = widget.user.school;
     }
@@ -48,7 +48,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
     _countryController.dispose();
     _displayNameController.dispose();
     _phoneController.dispose();
@@ -64,31 +63,35 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
       final currentUserState = ref.read(userProfileProvider).value;
       if (currentUserState == null) {
-        throw Exception("Utilisateur non trouvé, impossible de sauvegarder.");
+        throw Exception("User not found, cannot save.");
       }
 
-      // Si ce n'est pas un étudiant, l'école est ignorée/effacée
+      if (_newProfileImageData != null) {
+        await profileService.uploadProfilePicture(widget.user.id, _newProfileImageData!);
+      }
+
       final schoolToSave = _isStudent ? _selectedSchool : null;
 
       final updatedUser = currentUserState.copyWith(
-        displayName: _displayNameController.text,
-        phone: _phoneController.text,
+        displayName: _displayNameController.text.trim(),
+        phone: _phoneController.text.trim(),
         school: schoolToSave,
-        email: _emailController.text,
-        country: _countryController.text,
+        country: _countryController.text.trim(),
       );
       
       await profileService.updateUserProfile(updatedUser);
+      ref.invalidate(userProfileProvider);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profil mis à jour avec succès !')),
+          const SnackBar(content: Text('Profile updated successfully!')),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur lors de la mise à jour : $e')),
+          SnackBar(content: Text('Error updating profile: $e')),
         );
       }
     } finally {
@@ -98,57 +101,45 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
-  Future<void> _pickAndUploadImage() async {
+  Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
     if (pickedFile == null) return;
 
-    setState(() => _isLoading = true);
-    try {
-      final imageData = await pickedFile.readAsBytes();
-      final profileService = ref.read(profileServiceProvider);
-      await profileService.uploadProfilePicture(widget.user.id, imageData);
-
-      ref.invalidate(userProfileProvider);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Photo de profil mise à jour !')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur lors de l'upload : $e")),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    final imageData = await pickedFile.readAsBytes();
+    setState(() {
+      _newProfileImageData = imageData;
+    });
   }
 
   void _openCountryPicker() {
     showCountryPicker(
       context: context,
       countryListTheme: CountryListThemeData(
-        backgroundColor: ShadTheme.of(context).colorScheme.background,
-        textStyle: TextStyle(color: ShadTheme.of(context).colorScheme.foreground),
-        bottomSheetHeight: 500,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20.0),
-          topRight: Radius.circular(20.0),
-        ),
+        backgroundColor: Colors.white,
+        // MODIFICATION: Set text color for list items.
+        textStyle: TextStyle(color: Colors.grey[800]), 
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        // MODIFICATION: Constrain the height of the bottom sheet.
+        bottomSheetHeight: MediaQuery.of(context).size.height * 0.6,
         inputDecoration: InputDecoration(
-          labelText: 'Rechercher',
-          hintText: 'Commencez à taper...',
-          prefixIcon: const Icon(Icons.search),
+          labelText: 'Search',
+          hintText: 'Start typing...',
+          labelStyle: TextStyle(color: Colors.grey[700]),
+          hintStyle: TextStyle(color: Colors.grey[500]),
+          prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
           border: OutlineInputBorder(
-            borderSide: BorderSide(
-              color: const Color(0xFF8D99AE).withOpacity(0.2),
-            ),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
           ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Theme.of(context).primaryColor),
+          ),
+        ),
+        searchTextStyle: TextStyle(
+          color: Colors.grey[900],
+          fontWeight: FontWeight.w500,
         ),
       ),
       onSelect: (Country country) {
@@ -158,170 +149,231 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       },
     );
   }
+  
+  void _openSchoolPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
+      ),
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: _schools.length,
+                  itemBuilder: (context, index) {
+                    final school = _schools[index];
+                    return ListTile(
+                      title: Text(school, style: TextStyle(color: Colors.grey[800])),
+                      onTap: () {
+                        setState(() {
+                          _selectedSchool = school;
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final userAsyncValue = ref.watch(userProfileProvider);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Modifier le profil')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: GestureDetector(
-                  onTap: _isLoading ? null : _pickAndUploadImage,
-                  child: userAsyncValue.when(
-                    data: (user) => CircleAvatar(
-                      radius: 64,
-                      backgroundColor: ShadTheme.of(context).colorScheme.muted,
-                      backgroundImage: user?.photoUrl != null
-                          ? NetworkImage(user!.photoUrl!)
-                          : null,
-                      child: user?.photoUrl == null
-                          ? const Icon(Icons.camera_alt, size: 40)
-                          : null,
-                    ),
-                    loading: () => const CircleAvatar(radius: 64, child: CircularProgressIndicator()),
-                    error: (e, s) => const CircleAvatar(radius: 64, child: Icon(Icons.error)),
-                  ),
+    const primaryBlue = Color(0xFF0D47A1);
+    final lightGreyBackground = Colors.grey[200];
+    
+    return Theme(
+      data: Theme.of(context).copyWith(
+        textSelectionTheme: TextSelectionThemeData(
+          cursorColor: Colors.grey[800],
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: lightGreyBackground,
+        appBar: AppBar(
+          title: null,
+          backgroundColor: lightGreyBackground,
+          elevation: 0,
+          foregroundColor: Colors.black87,
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildAvatar(),
+                const SizedBox(height: 32),
+                _buildTextField(
+                  controller: _displayNameController,
+                  labelText: 'Display Name',
+                  prefixIcon: Icons.person_outline,
+                  validator: (value) => (value == null || value.trim().isEmpty) 
+                      ? 'Display name cannot be empty.' : null,
                 ),
-              ),
-              const SizedBox(height: 24),
-
-              Text("Nom d'affichage", style: ShadTheme.of(context).textTheme.small),
-              const SizedBox(height: 8),
-              FormField<String>(
-                validator: (value) {
-                  if (_displayNameController.text.isEmpty) {
-                    return 'Le nom ne peut pas être vide';
-                  }
-                  return null;
-                },
-                builder: (FormFieldState<String> field) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ShadInput(controller: _displayNameController),
-                      if (field.hasError)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(field.errorText!, style: TextStyle(color: ShadTheme.of(context).colorScheme.destructive)),
-                        ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              
-              Text("Adresse e-mail", style: ShadTheme.of(context).textTheme.small),
-              const SizedBox(height: 8),
-              FormField<String>(
-                validator: (value) {
-                  final email = _emailController.text;
-                  if (email.isEmpty) return 'L\'adresse e-mail ne peut pas être vide';
-                  final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-                  if (!emailRegex.hasMatch(email)) return 'Format d\'e-mail invalide';
-                  return null;
-                },
-                builder: (FormFieldState<String> field) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ShadInput(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      if (field.hasError)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(field.errorText!, style: TextStyle(color: ShadTheme.of(context).colorScheme.destructive)),
-                        ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-
-              Text('Numéro de téléphone', style: ShadTheme.of(context).textTheme.small),
-              const SizedBox(height: 8),
-              FormField<String>(
-                validator: (value) {
-                  final phone = _phoneController.text;
-                  if (phone.isNotEmpty) {
-                    final phoneRegex = RegExp(r'^\+41\s\d{2}\s\d{3}\s\d{2}\s\d{2}$');
-                    if (!phoneRegex.hasMatch(phone)) return 'Format invalide (+41 XX XXX XX XX)';
-                  }
-                  return null;
-                },
-                builder: (FormFieldState<String> field) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ShadInput(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        placeholder: const Text('+41 79 123 45 67'),
-                      ),
-                      if (field.hasError)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(field.errorText!, style: TextStyle(color: ShadTheme.of(context).colorScheme.destructive)),
-                        ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // ------------------------------------------------------------
-              // Champ "École / Université" visible uniquement pour STUDENT
-              // ------------------------------------------------------------
-              if (_isStudent) ...[
-                Text('École / Université', style: ShadTheme.of(context).textTheme.small),
-                const SizedBox(height: 8),
-                ShadSelect<String>(
-                  initialValue: _selectedSchool,
-                  placeholder: const Text('Sélectionnez une école'),
-                  options: _schools.map((school) => ShadOption(value: school, child: Text(school))).toList(),
-                  selectedOptionBuilder: (context, value) => Text(value),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedSchool = value;
-                    });
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _phoneController,
+                  labelText: 'Phone Number',
+                  prefixIcon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty) {
+                      final phoneRegex = RegExp(r'^\+?[1-9]\d{1,14}$');
+                      if (!phoneRegex.hasMatch(value)) {
+                        return 'Invalid phone format (e.g., +41791234567)';
+                      }
+                    }
+                    return null;
                   },
                 ),
                 const SizedBox(height: 16),
-              ],
-
-              Text("Pays", style: ShadTheme.of(context).textTheme.small),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: _openCountryPicker,
-                child: AbsorbPointer(
-                  child: ShadInput(
-                    controller: _countryController,
-                    placeholder: const Text('Sélectionnez un pays'),
-                    readOnly: true,
-                  ),
+                _buildPickerField(
+                  value: _countryController.text,
+                  labelText: 'Country',
+                  prefixIcon: Icons.flag_outlined,
+                  onTap: _openCountryPicker,
                 ),
-              ),
-              const SizedBox(height: 32),
-              
-              ShadButton(
-                onPressed: _isLoading ? null : _saveProfile,
-                child: _isLoading
-                    ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Enregistrer'),
-              ),
-            ],
+                if (_isStudent) ...[
+                  const SizedBox(height: 16),
+                  _buildPickerField(
+                    value: _selectedSchool,
+                    labelText: 'School',
+                    prefixIcon: Icons.school_outlined,
+                    onTap: _openSchoolPicker,
+                    validator: (value) => _selectedSchool == null ? 'Please select a school.' : null,
+                  ),
+                ],
+                const SizedBox(height: 32),
+                FilledButton(
+                  onPressed: _isLoading ? null : _saveProfile,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    backgroundColor: primaryBlue,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox.square(dimension: 24, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))
+                      : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildAvatar() {
+    return Center(
+      child: Stack(
+        children: [
+          CircleAvatar(
+            radius: 60,
+            backgroundColor: Colors.white,
+            backgroundImage: _newProfileImageData != null
+                ? MemoryImage(_newProfileImageData!)
+                : (widget.user.photoUrl != null && widget.user.photoUrl!.isNotEmpty
+                    ? NetworkImage(widget.user.photoUrl!)
+                    : null) as ImageProvider?,
+            child: (_newProfileImageData == null && (widget.user.photoUrl == null || widget.user.photoUrl!.isEmpty))
+                ? Icon(Icons.person, size: 60, color: Colors.grey[400])
+                : null,
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: GestureDetector(
+              onTap: _isLoading ? null : _pickImage,
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: const Color(0xFF0D47A1),
+                child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData prefixIcon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      cursorColor: Colors.grey[800],
+      style: TextStyle(color: Colors.grey[900], fontWeight: FontWeight.w500),
+      decoration: InputDecoration(
+        labelText: labelText,
+        labelStyle: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w500),
+        prefixIcon: Icon(prefixIcon, color: Colors.grey[500]),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.red.shade200)),
+        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.red.shade400)),
+      ),
+      keyboardType: keyboardType,
+      validator: validator,
+    );
+  }
+
+  Widget _buildPickerField({
+    required String? value,
+    required String labelText,
+    required IconData prefixIcon,
+    required VoidCallback onTap,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      readOnly: true,
+      key: ValueKey(value),
+      controller: TextEditingController(text: value),
+      style: TextStyle(color: Colors.grey[900], fontWeight: FontWeight.w500),
+      decoration: InputDecoration(
+        labelText: labelText,
+        labelStyle: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w500),
+        prefixIcon: Icon(prefixIcon, color: Colors.grey[500]),
+        suffixIcon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[500]),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.red.shade200)),
+        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.red.shade400)),
+      ),
+      onTap: onTap,
+      validator: validator,
+    );
+  }
 }
+

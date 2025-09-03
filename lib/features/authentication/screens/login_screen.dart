@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   _buildHeader(textTheme, primaryBlue),
                   const SizedBox(height: 48),
                   _buildLoginForm(textTheme, primaryBlue),
-                  const SizedBox(height: 24), // Increased spacing for better separation
+                  const SizedBox(height: 24),
                   _buildSignUpLink(context, textTheme, primaryBlue),
                 ],
               ),
@@ -83,12 +83,12 @@ class _LoginScreenState extends State<LoginScreen> {
       children: [
         Text.rich(
           TextSpan(
-            style: titleStyle?.copyWith(color: Colors.black87), // Default style for the span
+            style: titleStyle?.copyWith(color: Colors.black87),
             children: [
               const TextSpan(text: 'G'),
               TextSpan(
                 text: '1',
-                style: TextStyle(color: primaryColor), // Blue color for the "1"
+                style: TextStyle(color: primaryColor),
               ),
             ],
           ),
@@ -106,7 +106,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginForm(TextTheme textTheme, Color primaryColor) {
-    // MODIFICATION: Définition du style pour le texte saisi par l'utilisateur.
     final inputTextStyle = TextStyle(
       color: Colors.grey[900], 
       fontWeight: FontWeight.w500
@@ -120,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
           TextFormField(
             controller: _emailController,
             cursorColor: Colors.grey[800],
-            style: inputTextStyle, // Appliquer le style ici
+            style: inputTextStyle,
             decoration: InputDecoration(
               labelText: 'Email',
               labelStyle: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w500),
@@ -133,9 +132,14 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             keyboardType: TextInputType.emailAddress,
+            // MODIFICATION: Validateur d'email amélioré.
             validator: (value) {
-              if (value == null || !value.contains('@')) {
-                return 'Please enter a valid email';
+              if (value == null || value.trim().isEmpty) {
+                return 'Email address is required.';
+              }
+              final emailRegex = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+");
+              if (!emailRegex.hasMatch(value)) {
+                return 'Please enter a valid email format.';
               }
               return null;
             },
@@ -144,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
           TextFormField(
             controller: _passwordController,
             cursorColor: Colors.grey[800],
-            style: inputTextStyle, // Appliquer le style ici
+            style: inputTextStyle,
             decoration: InputDecoration(
               labelText: 'Password',
               labelStyle: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w500),
@@ -157,9 +161,10 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             obscureText: true,
+            // MODIFICATION: Validateur de mot de passe amélioré.
             validator: (value) {
-               if (value == null || value.length < 6) {
-                return 'Password must be at least 6 characters';
+               if (value == null || value.isEmpty) {
+                return 'Password is required.';
               }
               return null;
             },

@@ -22,6 +22,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   double _passwordStrength = 0.0;
   String _passwordFeedback = '';
 
+  // MODIFICATION 1: Variables d'état pour le suivi des exigences du mot de passe.
+  bool _hasMinLength = false;
+  bool _hasUppercase = false;
+  bool _hasLowercase = false;
+  bool _hasNumber = false;
+  bool _hasSpecialChar = false;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -45,30 +52,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  // MODIFICATION 2: Mise à jour de la fonction pour vérifier chaque critère individuellement.
   void _checkPasswordStrength(String password) {
     setState(() {
-      double strength = 0;
-      String feedback = 'Weak';
-      
-      if (password.isEmpty) {
-        strength = 0;
-        feedback = '';
-      } else {
-        // MODIFICATION 2: La longueur minimale est maintenant de 16 caractères.
-        if (password.length >= 16) strength += 0.25;
-        if (RegExp(r'[A-Z]').hasMatch(password)) strength += 0.25;
-        if (RegExp(r'[a-z]').hasMatch(password)) strength += 0.25;
-        if (RegExp(r'[0-9]').hasMatch(password)) strength += 0.125;
-        if (RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) strength += 0.125;
+      _hasMinLength = password.length >= 16;
+      _hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+      _hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+      _hasNumber = RegExp(r'[0-9]').hasMatch(password);
+      _hasSpecialChar = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password);
 
-        if (strength >= 0.8) {
-            feedback = 'Strong';
-        } else if (strength >= 0.4) {
-            feedback = 'Medium';
-        }
+      double strength = 0;
+      if (_hasMinLength) strength += 0.25;
+      if (_hasUppercase) strength += 0.25;
+      if (_hasLowercase) strength += 0.125;
+      if (_hasNumber) strength += 0.125;
+      if (_hasSpecialChar) strength += 0.25;
+
+      _passwordStrength = strength > 1.0 ? 1.0 : strength; // Clamp value to 1.0
+
+      if (password.isEmpty) {
+        _passwordFeedback = '';
+      } else if (_passwordStrength >= 0.8) {
+        _passwordFeedback = 'Strong';
+      } else if (_passwordStrength >= 0.4) {
+        _passwordFeedback = 'Medium';
+      } else {
+        _passwordFeedback = 'Weak';
       }
-      _passwordStrength = strength;
-      _passwordFeedback = feedback;
     });
   }
 
@@ -183,38 +193,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             obscureText: true,
             onChanged: _checkPasswordStrength,
-            // MODIFICATION 3: Validateur de mot de passe mis à jour pour 16 caractères.
             validator: (value) {
               if (value == null || value.isEmpty) return 'Please enter a password.';
-              if (value.length < 16) return 'Password must be at least 16 characters long.';
-              if (!RegExp(r'[A-Z]').hasMatch(value)) return 'Must contain an uppercase letter.';
-              if (!RegExp(r'[a-z]').hasMatch(value)) return 'Must contain a lowercase letter.';
-              if (!RegExp(r'[0-9]').hasMatch(value)) return 'Must contain a number.';
-              if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) return 'Must contain a special character.';
+              if (!_hasMinLength || !_hasUppercase || !_hasLowercase || !_hasNumber || !_hasSpecialChar) {
+                return 'Please meet all password requirements.';
+              }
               return null;
             },
           ),
           
           if (_passwordController.text.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: LinearProgressIndicator(
-                      value: _passwordStrength,
-                      backgroundColor: Colors.grey[300],
-                      color: _getPasswordStrengthColor(),
-                      minHeight: 6,
-                    ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: LinearProgressIndicator(
+                    value: _passwordStrength,
+                    backgroundColor: Colors.grey[300],
+                    color: _getPasswordStrengthColor(),
+                    minHeight: 6,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _passwordFeedback,
-                    style: textTheme.bodySmall?.copyWith(color: _getPasswordStrengthColor(), fontWeight: FontWeight.bold),
-                  )
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _passwordFeedback,
+                  style: textTheme.bodySmall?.copyWith(color: _getPasswordStrengthColor(), fontWeight: FontWeight.bold),
+                )
+              ],
+            ),
+            const SizedBox(height: 8),
+            // MODIFICATION 3: Ajout de l'encart des exigences.
+            _buildPasswordRequirements(),
+          ],
 
           const SizedBox(height: 16),
           TextFormField(
@@ -255,6 +265,57 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     'Create Account',
                     style: textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // MODIFICATION 4: Nouveau widget pour afficher l'encart des exigences.
+  Widget _buildPasswordRequirements() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildRequirementRow('At least 16 characters', _hasMinLength),
+          _buildRequirementRow('An uppercase letter (A-Z)', _hasUppercase),
+          _buildRequirementRow('A lowercase letter (a-z)', _hasLowercase),
+          _buildRequirementRow('A number (0-9)', _hasNumber),
+          _buildRequirementRow('A special character (!@#\$%)', _hasSpecialChar),
+        ],
+      ),
+    );
+  }
+
+  // MODIFICATION 5: Widget helper pour une ligne d'exigence.
+  Widget _buildRequirementRow(String text, bool isMet) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        children: [
+          Icon(
+            isMet ? Icons.check_circle : Icons.remove_circle_outline,
+            color: isMet ? Colors.green : Colors.grey.shade500,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              color: isMet ? Colors.grey.shade800 : Colors.grey.shade600,
+            ),
           ),
         ],
       ),
