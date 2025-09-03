@@ -39,7 +39,7 @@ class DashboardScreen extends StatelessWidget {
 }
 
 class _CreateListingFab extends StatefulWidget {
-  const _CreateListingFab({Key? key}) : super(key: key);
+  const _CreateListingFab({super.key});
 
   @override
   State<_CreateListingFab> createState() => _CreateListingFabState();

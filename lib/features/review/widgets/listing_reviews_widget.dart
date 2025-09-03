@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
-import 'package:intl/intl.dart'; // Pour le formatage des dates
+// Pour le formatage des dates
 
 import '../../../core/models/review_model.dart';
 import '../../../core/models/user_model.dart'; // Importer le UserModel

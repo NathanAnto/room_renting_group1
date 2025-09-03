@@ -17,7 +17,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   RangeValues _surfaceRange = const RangeValues(20, 100);
   double _maxTransportDist = 5;
   double _maxHessoDist = 5;
-  RangeValues _numRoomsRange = const RangeValues(1, 5);
+  final RangeValues _numRoomsRange = const RangeValues(1, 5);
   final Map<String, bool> _amenities = {
     "is_furnished": false,
     "wifi_incl": false,

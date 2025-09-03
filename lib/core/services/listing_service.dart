@@ -1,7 +1,6 @@
 // lib/services/listing_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:room_renting_group1/core/models/listing.dart';
-import 'package:room_renting_group1/core/models/ListingAvailability.dart';
 
 class ListingService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;

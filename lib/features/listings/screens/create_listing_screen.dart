@@ -18,7 +18,7 @@ import 'package:room_renting_group1/core/services/listing_service.dart';
 import 'package:room_renting_group1/core/utils/prediction_price_api.dart';
 
 class CreateListingScreen extends StatefulWidget {
-  const CreateListingScreen({Key? key}) : super(key: key);
+  const CreateListingScreen({super.key});
 
   @override
   State<CreateListingScreen> createState() => _CreateListingScreenState();
