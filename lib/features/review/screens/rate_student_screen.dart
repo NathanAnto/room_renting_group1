@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:room_renting_group1/core/models/review_model.dart';
 import 'package:room_renting_group1/core/services/auth_service.dart';
 import 'package:room_renting_group1/core/services/review_service.dart';
-import 'package:room_renting_group1/features/review/widgets/review_form.dart';
+import 'package:room_renting_group1/features/booking/widgets/review_form.dart';
 
 class RateStudentScreen extends StatefulWidget {
   final String studentId;
