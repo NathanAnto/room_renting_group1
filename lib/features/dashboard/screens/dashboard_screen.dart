@@ -12,8 +12,14 @@ import 'package:room_renting_group1/features/listings/screens/create_listing_scr
 import 'package:room_renting_group1/core/models/listing.dart';
 import 'package:room_renting_group1/core/services/auth_service.dart';
 import 'package:room_renting_group1/core/services/listing_service.dart';
+// Import ajouté pour la logique de vérification des avis
+import 'package:room_renting_group1/core/services/review_service.dart';
 import 'package:room_renting_group1/features/listings/widgets/listing_card.dart';
 import 'package:room_renting_group1/features/listings/screens/edit_listing_screen.dart';
+
+// Imports pour les écrans d'évaluation
+import 'package:room_renting_group1/features/review/screens/rate_listing_screen.dart';
+import 'package:room_renting_group1/features/review/screens/rate_student_screen.dart';
 
 import '../../../core/services/profile_service.dart';
 
@@ -32,9 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _userRole;
   bool _isLoading = true;
 
-  // To store listings for easy title lookup
   Map<String, Listing> _listingsMap = {};
-  Map<String, Booking> _studentsBookingsMap = {};
 
   @override
   void initState() {
@@ -49,28 +53,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
     try {
-      // Fetch role and listings in parallel to speed things up
       final roleFuture = FirebaseFirestore.instance
           .collection('Profile')
           .doc(user.uid)
           .get();
 
-      // Use .first to treat the stream like a future for the initial load
       final listingsFuture = _listingService.getListingsByOwner(user.uid).first;
 
-      final listingResponses = await Future.wait([roleFuture, listingsFuture]);
+      final responses = await Future.wait([roleFuture, listingsFuture]);
 
       final roleSnap =
-          listingResponses[0] as DocumentSnapshot<Map<String, dynamic>>;
-      final listings = listingResponses[1] as List<Listing>;
-
-      final bookingsFuture = _bookingService
-          .getBookingsByStudentId(user.uid)
-          .first;
-
-      final bookingResponses = await Future.wait([roleFuture, bookingsFuture]);
-
-      final bookings = bookingResponses[1] as List<Booking>;
+          responses[0] as DocumentSnapshot<Map<String, dynamic>>;
+      final listings = responses[1] as List<Listing>;
 
       if (mounted) {
         setState(() {
@@ -78,16 +72,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (data != null) {
             _userRole = (data['role'] ?? '').toString().toLowerCase();
           }
-          // Create a map of listingId -> Listing object for quick lookups
           _listingsMap = {
             for (var l in listings)
               if (l.id != null) l.id!: l,
           };
-          // Create a map of bookingId -> Booking object for quick lookups
-          _studentsBookingsMap = {
-            for (var b in bookings)
-              if (b.id != null) b.id!: b,
-          };
+
           _isLoading = false;
         });
       }
@@ -96,6 +85,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       print("Error fetching user data: $e");
     }
   }
+  
+  // NOUVELLE MÉTHODE pour forcer le rafraîchissement de l'UI
+  void _refreshData() {
+    setState(() {
+      // Appeler setState force le widget à se reconstruire, 
+      // ce qui ré-exécute les FutureBuilders et met à jour l'état.
+    });
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -125,13 +123,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return Column(
         children: [
           _buildPendingBookingsSection(user.uid),
+          _buildCompletedBookingsSection(user.uid),
           Expanded(child: _buildHomeownerListings(user.uid)),
         ],
       );
     } else if (_userRole == 'student') {
-      return _buildStudentBookingsSection(
-        user.uid,
-      ); // const Center(child: Text('Your Booked Listings (coming soon!)'));
+      return _buildStudentBookingsSection(user.uid);
     }
     return const Center(child: Text('Welcome to your dashboard.'));
   }
@@ -141,10 +138,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       stream: _bookingService.getBookingsByStudentId(studentId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(child: CircularProgressIndicator()),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
@@ -161,7 +155,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             final booking = bookings[index];
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: _BookingCard(booking: booking),
+              // MODIFICATION: On passe la fonction de rafraîchissement au widget enfant
+              child: _BookingCard(
+                booking: booking,
+                onReviewSubmitted: _refreshData,
+              ),
             );
           },
         );
@@ -173,15 +171,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return StreamBuilder<List<Booking>>(
       stream: _bookingService.getPendingBookingsStreamForHomeowner(ownerId),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            _listingsMap.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          // Don't show anything if there are no pending bookings
           return const SizedBox.shrink();
         }
         if (snapshot.hasError) {
@@ -189,49 +179,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         final bookings = snapshot.data!;
-        final screenHeight = MediaQuery.of(context).size.height;
 
         return Container(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min, // Constrain Column size
             children: [
-              Text(
-                'Pending Requests',
-                style: ShadTheme.of(context).textTheme.h4,
+              Text('Pending Requests', style: ShadTheme.of(context).textTheme.h4),
+              const SizedBox(height: 16),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: bookings.length,
+                itemBuilder: (context, index) {
+                  final booking = bookings[index];
+                  final listingTitle = _listingsMap[booking.listingid]?.title ?? 'A Listing';
+                  return _PendingBookingCard(
+                    booking: booking,
+                    listingTitle: listingTitle,
+                    onAccept: () => _handleAcceptBooking(booking.id),
+                    onRefuse: () => _handleRefuseBooking(booking.id),
+                  );
+                },
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
               ),
               const SizedBox(height: 16),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  // Set a max height for the list
-                  maxHeight: screenHeight * 0.3,
-                ),
-                child: ListView.separated(
-                  // Remove shrinkWrap and physics to allow scrolling
-                  itemCount: bookings.length,
-                  itemBuilder: (context, index) {
-                    final booking = bookings[index];
-                    final listingTitle =
-                        _listingsMap[booking.listingid]?.title ?? 'A Listing';
-                    return _PendingBookingCard(
-                      booking: booking,
-                      listingTitle: listingTitle,
-                      studentId: booking.studentid,
-                      onAccept: () => _handleAcceptBooking(booking.id),
-                      onRefuse: () => _handleRefuseBooking(booking.id),
-                    );
-                  },
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const ShadSeparator.horizontal(
-                thickness: 4,
-                margin: EdgeInsets.symmetric(horizontal: 20),
-                radius: BorderRadius.all(Radius.circular(4)),
-              ),
+              const ShadSeparator.horizontal(),
             ],
           ),
         );
@@ -239,20 +212,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildCompletedBookingsSection(String ownerId) {
+    return StreamBuilder<List<Booking>>(
+      stream: _bookingService.getCompletedBookingsForHomeowner(ownerId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error fetching completed bookings: ${snapshot.error}'));
+        }
+        final bookings = snapshot.data!;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Students to Review', style: ShadTheme.of(context).textTheme.h4),
+              const SizedBox(height: 16),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: bookings.length,
+                itemBuilder: (context, index) {
+                  final booking = bookings[index];
+                  final listingTitle = _listingsMap[booking.listingid]?.title ?? 'A Listing';
+                  return _StudentToRateCard(
+                    booking: booking,
+                    listingTitle: listingTitle,
+                    onReviewSubmitted: _refreshData,
+                  );
+                },
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+              ),
+              const SizedBox(height: 16),
+              const ShadSeparator.horizontal(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
   Future<void> _handleAcceptBooking(String? bookingId) async {
     if (bookingId == null) return;
     try {
       await _bookingService.acceptBooking(bookingId);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Booking accepted!')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking accepted!')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to accept booking: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to accept booking: $e')));
       }
     }
   }
@@ -262,15 +274,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       await _bookingService.refuseBooking(bookingId);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Booking refused.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking refused.')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to refuse booking: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to refuse booking: $e')));
       }
     }
   }
@@ -288,47 +296,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final listings = snapshot.data ?? [];
         if (listings.isEmpty) {
           return const Center(
-            child: Text('You have not created any listings yet.'),
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('You have not created any listings yet.', textAlign: TextAlign.center,),
+            ),
           );
         }
-
-        // Update the listings map whenever new data arrives
-        _listingsMap = {
-          for (var l in listings)
-            if (l.id != null) l.id!: l,
-        };
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: listings.length,
-          itemBuilder: (context, index) {
-            final listing = listings[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: ListingCard(
-                listing: listing,
-                showEditButton: true,
-                showDeleteButton: true,
-                onEdit: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => EditListingScreen(listing: listing),
-                    ),
-                  );
-                },
-                onDelete: () => _confirmDelete(listing),
-                onViewDetails: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          SingleListingScreen(listing: listing),
+        _listingsMap = { for (var l in listings) if (l.id != null) l.id!: l };
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Text('My Listings', style: ShadTheme.of(context).textTheme.h4),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: listings.length,
+                itemBuilder: (context, index) {
+                  final listing = listings[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: ListingCard(
+                      listing: listing,
+                      showEditButton: true,
+                      showDeleteButton: true,
+                      onEdit: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EditListingScreen(listing: listing))),
+                      onDelete: () => _confirmDelete(listing),
+                      onViewDetails: () => Navigator.push(context, MaterialPageRoute(builder: (context) => SingleListingScreen(listing: listing))),
                     ),
                   );
                 },
               ),
-            );
-          },
+            ),
+          ],
         );
       },
     );
@@ -339,35 +341,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (context) => ShadDialog(
         title: const Text('Confirm Deletion'),
-        description: const Text(
-          'Are you sure you want to delete this listing? This action cannot be undone.',
-        ),
+        description: const Text('Are you sure you want to delete this listing? This action cannot be undone.'),
         actions: [
-          ShadButton.ghost(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.of(context).pop(false),
-          ),
-          ShadButton.destructive(
-            child: const Text('Delete'),
-            onPressed: () => Navigator.of(context).pop(true),
-          ),
+          ShadButton.ghost(child: const Text('Cancel'), onPressed: () => Navigator.of(context).pop(false)),
+          ShadButton.destructive(child: const Text('Delete'), onPressed: () => Navigator.of(context).pop(true)),
         ],
       ),
     );
-
     if (confirmed == true && listing.id != null) {
       try {
         await _listingService.deleteListing(listing.id!);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Listing deleted successfully.')),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Listing deleted successfully.')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error deleting listing: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting listing: $e')));
         }
       }
     }
@@ -377,30 +366,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 class _PendingBookingCard extends StatelessWidget {
   final Booking booking;
   final String listingTitle;
-  final String studentId;
   final VoidCallback onAccept;
   final VoidCallback onRefuse;
   static final ProfileService _profileService = ProfileService();
 
-  const _PendingBookingCard({
-    required this.booking,
-    required this.listingTitle,
-    required this.studentId,
-    required this.onAccept,
-    required this.onRefuse,
-  });
+  const _PendingBookingCard({ required this.booking, required this.listingTitle, required this.onAccept, required this.onRefuse });
 
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
     final dateFormat = DateFormat('MMM d, yyyy');
-    final dateRange =
-        '${dateFormat.format(booking.start)} - ${dateFormat.format(booking.end)}';
+    final dateRange = '${dateFormat.format(booking.start)} - ${dateFormat.format(booking.end)}';
 
     return ShadCard(
       title: Text(listingTitle, style: theme.textTheme.large),
       description: Text(dateRange, style: theme.textTheme.muted),
-      // The footer now only contains the action buttons
       footer: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -412,31 +392,15 @@ class _PendingBookingCard extends StatelessWidget {
       child: FutureBuilder<UserModel?>(
         future: _profileService.getUserProfile(booking.studentid),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Text(
-              'Loading student...',
-              style: TextStyle(fontStyle: FontStyle.italic),
-            );
-          }
-          if (!snapshot.hasData || snapshot.data == null) {
-            return const Text(
-              'Student not found',
-              style: TextStyle(color: Colors.red),
-            );
-          }
+          if (!snapshot.hasData) return const Text('Loading student...', style: TextStyle(fontStyle: FontStyle.italic));
           final student = snapshot.data!;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
-              Text(
-                'From: ${student.displayName}',
-                style: theme.textTheme.p.copyWith(fontWeight: FontWeight.bold),
-              ),
-              if (student.phone != null && student.phone!.isNotEmpty)
-                Text('Phone: ${student.phone}', style: theme.textTheme.muted),
-              if (student.email.isNotEmpty)
-                Text('Email: ${student.email}', style: theme.textTheme.muted),
+              Text('From: ${student.displayName}', style: theme.textTheme.p.copyWith(fontWeight: FontWeight.bold)),
+              if (student.phone != null && student.phone!.isNotEmpty) Text('Phone: ${student.phone}', style: theme.textTheme.muted),
+              if (student.email.isNotEmpty) Text('Email: ${student.email}', style: theme.textTheme.muted),
             ],
           );
         },
@@ -447,64 +411,149 @@ class _PendingBookingCard extends StatelessWidget {
 
 class _BookingCard extends StatelessWidget {
   final Booking booking;
+  final VoidCallback onReviewSubmitted;
 
   static final ProfileService _profileService = ProfileService();
   static final ListingService _listingService = ListingService();
+  static final ReviewService _reviewService = ReviewService();
 
-  const _BookingCard({super.key, required this.booking});
+  const _BookingCard({ super.key, required this.booking, required this.onReviewSubmitted });
 
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
     final dateFormat = DateFormat('MMM d, yyyy');
-    final dateRange =
-        '${dateFormat.format(booking.start)} - ${dateFormat.format(booking.end)}';
-    final isAccepted = booking.status == BookingStatus.accepted;
+    final dateRange = '${dateFormat.format(booking.start)} - ${dateFormat.format(booking.end)}';
+    
+    final bool isBookingFinished = booking.end.isBefore(DateTime.now());
+    final bool canBeRated = isBookingFinished && booking.status == BookingStatus.accepted;
 
     return FutureBuilder<Listing?>(
       future: _listingService.getListing(booking.listingid),
       builder: (context, listingSnapshot) {
         if (listingSnapshot.connectionState == ConnectionState.waiting) {
-          return ShadCard(
-            title: const Text('Loading Listing...'),
-            description: Text(dateRange, style: theme.textTheme.muted),
-          );
+          return ShadCard(title: const Text('Loading Listing...'), description: Text(dateRange, style: theme.textTheme.muted));
         }
 
         final listingTitle = listingSnapshot.data?.title ?? 'Listing Not Found';
+        final ownerId = listingSnapshot.data?.ownerId ?? '';
 
         return ShadCard(
           title: Text(listingTitle, style: theme.textTheme.large),
           description: Text(dateRange, style: theme.textTheme.muted),
-          footer: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          footer: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Homeowner Info
-              Expanded(
-                child: FutureBuilder<UserModel?>(
-                  future: _profileService.getUserProfile(booking.homeownerid),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: FutureBuilder<UserModel?>(
+                      future: _profileService.getUserProfile(booking.homeownerid),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) return const Text('Loading host...');
+                        return Text('Host: ${snapshot.data?.displayName ?? 'N/A'}', style: theme.textTheme.muted);
+                      },
+                    ),
+                  ),
+                  if (booking.status == BookingStatus.accepted) const ShadBadge.outline(child: Text('Accepted'))
+                  else if (booking.status == BookingStatus.pending) const ShadBadge.secondary(child: Text('Pending'))
+                  else const ShadBadge.destructive(child: Text('Refused')),
+                ],
+              ),
+              if (canBeRated) 
+                FutureBuilder<bool>(
+                  future: _reviewService.hasStudentReviewedProperty(booking.studentid, booking.listingid),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Text(
-                        'Loading host...',
-                        style: TextStyle(fontStyle: FontStyle.italic),
+                    if (snapshot.connectionState == ConnectionState.waiting) return const SizedBox.shrink();
+                    final hasReviewed = snapshot.data ?? false;
+                    if (!hasReviewed) {
+                      return Column(
+                        children: [
+                          const SizedBox(height: 16),
+                          const ShadSeparator.horizontal(),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ShadButton.outline(
+                              onPressed: () async {
+                                final reviewWasSubmitted = await Navigator.push<bool>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => RateListingScreen(propertyId: booking.listingid, ownerId: ownerId),
+                                  ),
+                                );
+                                if (reviewWasSubmitted == true) {
+                                  onReviewSubmitted();
+                                }
+                              },
+                              child: const Text('Rate Your Stay'),
+                            ),
+                          ),
+                        ],
                       );
                     }
-                    final homeowner = snapshot.data;
-                    return Text(
-                      'Host: ${homeowner?.displayName ?? 'N/A'}',
-                      style: theme.textTheme.muted,
-                      overflow: TextOverflow.ellipsis,
-                    );
+                    return const SizedBox.shrink();
                   },
                 ),
-              ),
-              // Status Badge
-              isAccepted
-                  ? ShadBadge.outline(child: const Text('Accepted'))
-                  : ShadBadge.secondary(child: const Text('Pending')),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+class _StudentToRateCard extends StatelessWidget {
+  final Booking booking;
+  final String listingTitle;
+  final VoidCallback onReviewSubmitted;
+  
+  static final ProfileService _profileService = ProfileService();
+  static final ReviewService _reviewService = ReviewService();
+
+  const _StudentToRateCard({ required this.booking, required this.listingTitle, required this.onReviewSubmitted });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _reviewService.hasOwnerReviewedStudent(booking.homeownerid, booking.studentid, booking.listingid),
+      builder: (context, reviewSnapshot) {
+        if (reviewSnapshot.connectionState == ConnectionState.waiting || reviewSnapshot.data == true) {
+          return const SizedBox.shrink();
+        }
+
+        return FutureBuilder<UserModel?>(
+          future: _profileService.getUserProfile(booking.studentid),
+          builder: (context, studentSnapshot) {
+            if (!studentSnapshot.hasData) return const SizedBox.shrink();
+            final student = studentSnapshot.data!;
+            return ShadCard(
+              title: Text("Review ${student.displayName}", style: ShadTheme.of(context).textTheme.large),
+              description: Text("For the stay at: $listingTitle", style: ShadTheme.of(context).textTheme.muted),
+              footer: SizedBox(
+                width: double.infinity,
+                child: ShadButton(
+                  onPressed: () async {
+                     final reviewWasSubmitted = await Navigator.push<bool>(
+                       context,
+                       MaterialPageRoute(
+                         builder: (context) => RateStudentScreen(
+                           studentId: booking.studentid,
+                           propertyId: booking.listingid,
+                           studentName: student.displayName,
+                         ),
+                       ),
+                     );
+                      if (reviewWasSubmitted == true) {
+                        onReviewSubmitted();
+                      }
+                  },
+                  child: const Text("Leave a Review"),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -531,15 +580,11 @@ class _CreateListingFabState extends State<_CreateListingFab> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
 
-    final snap = await FirebaseFirestore.instance
-        .collection('Profile')
-        .doc(user.uid)
-        .get();
+    final snap = await FirebaseFirestore.instance.collection('Profile').doc(user.uid).get();
+    if (!snap.exists) return false;
+
     final data = snap.data();
-    if (data == null) return false;
-
-    final role = (data['role'] ?? '').toString().toLowerCase();
-
+    final role = (data?['role'] ?? '').toString().toLowerCase();
     return role == 'homeowner';
   }
 
@@ -548,16 +593,10 @@ class _CreateListingFabState extends State<_CreateListingFab> {
     return FutureBuilder<bool>(
       future: _showFab,
       builder: (context, snapshot) {
-        final show = snapshot.data == true;
-        if (!show) return const SizedBox.shrink();
-
+        if (snapshot.data != true) return const SizedBox.shrink();
         return FloatingActionButton.extended(
           heroTag: 'create-listing-fab',
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CreateListingScreen()),
-            );
-          },
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateListingScreen())),
           icon: const Icon(Icons.add_home_work_outlined),
           label: const Text('New Listing'),
         );

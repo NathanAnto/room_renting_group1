@@ -5,7 +5,7 @@ import 'package:room_renting_group1/core/models/review_model.dart';
 class ReviewService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Référence à la collection 'reviews' avec un convertisseur pour la sécurité des types.
+  // Référence à la collection 'Review' avec un convertisseur pour la sécurité des types.
   late final CollectionReference<Review> _reviewsRef;
 
   ReviewService() {
@@ -71,5 +71,37 @@ class ReviewService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+  }
+
+  // ======================================================
+  // ## MÉTHODES AJOUTÉES POUR LA VÉRIFICATION D'AVIS ##
+  // ======================================================
+
+  /// Vérifie si un étudiant a déjà laissé un avis pour une propriété spécifique.
+  /// Retourne `true` si un avis existe, sinon `false`.
+  Future<bool> hasStudentReviewedProperty(String studentId, String propertyId) async {
+    final querySnapshot = await _db
+        .collection('Review')
+        .where('studentId', isEqualTo: studentId)
+        .where('propertyId', isEqualTo: propertyId)
+        .where('reviewerType', isEqualTo: 'student')
+        .limit(1)
+        .get();
+    return querySnapshot.docs.isNotEmpty;
+  }
+
+  /// Vérifie si un propriétaire a déjà laissé un avis sur un étudiant pour une réservation spécifique.
+  /// Retourne `true` si un avis existe, sinon `false`.
+  Future<bool> hasOwnerReviewedStudent(String ownerId, String studentId, String propertyId) async {
+    // On utilise _db directement ici car _reviewsRef est typé et la requête est simple.
+    final querySnapshot = await _db
+        .collection('Review')
+        .where('ownerId', isEqualTo: ownerId)
+        .where('studentId', isEqualTo: studentId)
+        .where('propertyId', isEqualTo: propertyId)
+        .where('reviewerType', isEqualTo: 'owner')
+        .limit(1)
+        .get();
+    return querySnapshot.docs.isNotEmpty;
   }
 }
