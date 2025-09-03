@@ -9,6 +9,8 @@ import '../../../core/models/listing.dart';
 import '../../../core/models/ListingAvailability.dart';
 // Importation du widget des avis
 import '../../review/widgets/listing_reviews_widget.dart';
+import '../widgets/transport_widget.dart';
+import '../widgets/places_widget.dart';
 
 class SingleListingScreen extends StatelessWidget {
   final Listing listing;
@@ -93,7 +95,13 @@ class SingleListingScreen extends StatelessWidget {
               ),
             ),
             
+            
             const SizedBox(height: 16),
+            StudentListingItinerary(listing: listing),
+            const SizedBox(height: 12),
+            NearbyPlacesList(lat: listing.lat, lon: listing.lng, limit: 10),
+
+              const SizedBox(height: 16),
 
             // --- Section des Avis ---
             Padding(
