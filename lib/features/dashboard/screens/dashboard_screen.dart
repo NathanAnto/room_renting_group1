@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:room_renting_group1/features/listings/screens/single_listing_screen.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -100,7 +101,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
         final listings = snapshot.data ?? [];
         if (listings.isEmpty) {
-          return const Center(child: Text('You have not created any listings yet.'));
+          return const Center(
+            child: Text('You have not created any listings yet.'),
+          );
         }
 
         return ListView.builder(
@@ -113,13 +116,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: ListingCard(
                 listing: listing,
                 showEditButton: true,
+                showDeleteButton: true,
                 onEdit: () {
-                   Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => EditListingScreen(listing: listing),
-                  ));
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => EditListingScreen(listing: listing),
+                    ),
+                  );
                 },
+                onDelete: () => _confirmDelete(listing),
                 onViewDetails: () {
-                  // TODO: Navigate to listing details screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          SingleListingScreen(listing: listing),
+                    ),
+                  );
                 },
               ),
             );
@@ -127,6 +140,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
       },
     );
+  }
+
+  Future<void> _confirmDelete(Listing listing) async {
+    final confirmed = await showShadDialog<bool>(
+      context: context,
+      builder: (context) => ShadDialog(
+        title: const Text('Confirm Deletion'),
+        description: const Text(
+          'Are you sure you want to delete this listing? This action cannot be undone.',
+        ),
+        actions: [
+          ShadButton.ghost(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          ShadButton.destructive(
+            child: const Text('Delete'),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && listing.id != null) {
+      try {
+        await _listingService.deleteListing(listing.id!);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Listing deleted successfully.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error deleting listing: $e')));
+        }
+      }
+    }
   }
 }
 
@@ -151,8 +203,10 @@ class _CreateListingFabState extends State<_CreateListingFab> {
     if (user == null) return false;
 
     // Lecture du profil dans la collection "Profile" (conforme à tes règles/Services)
-    final snap =
-        await FirebaseFirestore.instance.collection('Profile').doc(user.uid).get();
+    final snap = await FirebaseFirestore.instance
+        .collection('Profile')
+        .doc(user.uid)
+        .get();
     final data = snap.data();
     if (data == null) return false;
 
@@ -175,9 +229,7 @@ class _CreateListingFabState extends State<_CreateListingFab> {
           heroTag: 'create-listing-fab',
           onPressed: () {
             Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const CreateListingScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const CreateListingScreen()),
             );
           },
           icon: const Icon(Icons.add_home_work_outlined),

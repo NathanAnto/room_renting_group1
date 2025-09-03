@@ -11,6 +11,8 @@ class ListingCard extends StatelessWidget {
   final VoidCallback? onContactHost;
   final bool showEditButton;
   final VoidCallback? onEdit;
+  final bool showDeleteButton;
+  final VoidCallback? onDelete;
 
   const ListingCard({
     super.key,
@@ -19,6 +21,8 @@ class ListingCard extends StatelessWidget {
     this.onContactHost,
     this.showEditButton = false,
     this.onEdit,
+    this.showDeleteButton = false,
+    this.onDelete, 
   });
 
   @override
@@ -49,6 +53,13 @@ class ListingCard extends StatelessWidget {
             ShadButton.secondary(
               onPressed: onEdit,
               child: const Text('Edit'),
+            ),
+            const SizedBox(width: 8),
+          ],
+          if (showDeleteButton) ...[
+            ShadButton.destructive(
+              onPressed: onDelete,
+              child: const Text('Delete'),
             ),
             const SizedBox(width: 8),
           ],
