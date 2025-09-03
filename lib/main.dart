@@ -26,16 +26,12 @@ import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/sign_up_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
 import 'features/profile/screens/create_profile_screen.dart';
-import 'features/apartments/screens/edit_apartment_page.dart';
 import 'features/profile/screens/settings_screen.dart';
 import 'features/profile/screens/about_screens.dart';
 // --- Admin ---
 import 'features/admin/screens/admin_users_screen.dart';
 
 // --- Modèles ---
-import 'core/models/apartment.dart';
-// -- Test ---
-import 'package:room_renting_group1/features/review/screens/review_test_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,18 +111,6 @@ class _MyAppState extends State<MyApp> {
         GoRoute(path: SettingsScreen.route, builder: (ctx, s) => const SettingsScreen()),
         GoRoute(path: AboutScreen.route, builder: (ctx, s) => const AboutScreen()),
         GoRoute(path: '/admin/users', builder: (ctx, s) => const AdminUsersScreen()),
-        GoRoute(
-          path: '/edit-apartment',
-          builder: (ctx, s) {
-            final apt = s.extra is Apartment ? s.extra as Apartment : null;
-            return EditApartmentPage(apartment: apt);
-          },
-        ),
-        // 2. Ajouter la route pour la page de test
-        GoRoute(
-          path: '/review-test',
-          builder: (ctx, s) => const ReviewTestPage(),
-        ),
       ],
       errorBuilder: (context, state) => Scaffold(
         appBar: AppBar(title: const Text('Page Introuvable')),

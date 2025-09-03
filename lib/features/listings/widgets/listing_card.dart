@@ -30,7 +30,7 @@ class ListingCard extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
       description: Text(
-        '${listing.city} - ${listing.addressLine}',
+        listing.addressLine,
         style: theme.textTheme.muted,
       ),
       footer: Row(
