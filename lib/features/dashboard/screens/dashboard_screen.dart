@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:room_renting_group1/features/listings/screens/create_listing_screen.dart';
@@ -8,9 +9,14 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = ShadTheme.of(context);
     return Scaffold(
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        title: const Text('Dashboard', style: TextStyle(fontSize: 20)),
+        backgroundColor: theme.colorScheme.background,
+        elevation: 0,
+        centerTitle: true,
       ),
       body: const Center(
         child: Text(''),
@@ -71,7 +77,7 @@ class _CreateListingFabState extends State<_CreateListingFab> {
             );
           },
           icon: const Icon(Icons.add_home_work_outlined),
-          label: const Text('Nouvelle annonce'),
+          label: const Text('New Listing'),
         );
       },
     );

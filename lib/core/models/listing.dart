@@ -92,9 +92,12 @@ class Listing {
             .map((k, v) => MapEntry(k.toString(), v == true)),
       ),
       status: (data['status'] ?? 'draft') as String,
-      createdAt: _toDate(data['createdAt']) ?? DateTime.now(),
-      // tolère "updateAt" (ancien nom)
-      updatedAt: _toDate(data['updatedAt'] ?? data['updateAt']) ?? DateTime.now(),
+      createdAt: (data['createdAt'] is Timestamp)
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      updatedAt: (data['updatedAt'] is Timestamp)
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
       images: List<String>.from(
         (data['images'] ?? const <dynamic>[]).map((e) => e.toString()),
       ),
@@ -165,4 +168,35 @@ class Listing {
     }
     return null;
   }
+}
+
+// ======= Modèle léger pour Nominatim =======
+class OsmPlace {
+  final String displayName;
+  final double lat;
+  final double lon;
+  final String? city;
+  final String? town;
+  final String? village;
+
+  OsmPlace({
+    required this.displayName,
+    required this.lat,
+    required this.lon,
+    this.city,
+    this.town,
+    this.village,
+  });
+
+  factory OsmPlace.fromJson(Map<String, dynamic> json) {
+    final addr = json['address'] as Map<String, dynamic>? ?? {};
+    return OsmPlace(
+      displayName: json['display_name']?.toString() ?? '',
+      lat: double.tryParse(json['lat']?.toString() ?? '') ?? 0,
+      lon: double.tryParse(json['lon']?.toString() ?? '') ?? 0,
+      city: addr['city']?.toString(),
+      town: addr['town']?.toString(),
+      village: addr['village']?.toString(),
+    );
+    }
 }

@@ -34,7 +34,7 @@ class NearbyPlacesList extends StatelessWidget {
               children: [
                 const Icon(Icons.error_outline),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Impossible de charger les lieux à proximité.\n${snapshot.error}')),
+                Expanded(child: Text('Impossible to load nearby locations.\n${snapshot.error}')),
               ],
             ),
           );
@@ -43,7 +43,7 @@ class NearbyPlacesList extends StatelessWidget {
         if (places.isEmpty) {
           return const Padding(
             padding: EdgeInsets.all(12.0),
-            child: Text('Aucun lieu à proximité.'),
+            child: Text('No location nearby.'),
           );
         }
 
@@ -57,7 +57,7 @@ class NearbyPlacesList extends StatelessWidget {
                   Icon(Icons.place_outlined),
                   SizedBox(width: 8),
                   Text(
-                    'À proximité',
+                    'Nearby locations',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],

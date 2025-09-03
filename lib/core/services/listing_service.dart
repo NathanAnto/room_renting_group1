@@ -1,4 +1,8 @@
 // lib/services/listing_service.dart
+import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:room_renting_group1/core/models/listing.dart';
 import 'package:room_renting_group1/core/models/ListingAvailability.dart';
@@ -45,6 +49,89 @@ class ListingService {
     }
   }
 
+  Stream<List<Listing>> getFilteredListings({
+    String? city,
+    String? type,
+    DateTime? availableFrom,
+    DateTime? availableTo,
+    double? minRent,
+    double? maxRent,
+    double? minSurface,
+    double? maxSurface,
+    double? maxPublicTransportDistance,
+    double? maxProximHessoDistance,
+    List<String>? amenities,
+    List<String>? listingIds,
+  }) {
+    // Start with the base collection query
+    Query<Map<String, dynamic>> query = _db.collection(collectionName);
+
+    // Apply filters conditionally
+    if (city != null && city.isNotEmpty) {
+      query = query.where('city', isEqualTo: city);
+    }
+    if (type != null && type.isNotEmpty) {
+      query = query.where('type', isEqualTo: type);
+    }
+
+    return query.snapshots().map((snapshot) {
+      List<Listing> listings = snapshot.docs
+          .map((doc) => Listing.fromFirestore(doc))
+          .toList();
+
+      // 3. Apply ALL other filters here in the app (client-side).
+      return listings.where((listing) {
+        if (availableFrom != null && availableTo != null) {
+          // Check if the user's range overlaps with ANY of the listing's windows
+          final isAvailable = listing.availability.windows.any((window) {
+            // Standard interval overlap condition:
+            // UserStart <= WindowEnd AND UserEnd >= WindowStart
+            final userStart = availableFrom;
+            final userEnd = availableTo;
+            final windowStart = window.start;
+            final windowEnd = window.end;
+
+            return !userStart.isAfter(windowEnd) &&
+                !userEnd.isBefore(windowStart);
+          });
+
+          // If no availability window overlaps, discard the listing
+          if (!isAvailable) return false;
+        }
+
+        // Price Range Check
+        if (minRent != null && listing.rentPerMonth < minRent) return false;
+        if (maxRent != null && listing.rentPerMonth > maxRent) return false;
+
+        if (minSurface != null && listing.surface < minSurface) return false;
+        if (maxSurface != null && listing.surface > maxSurface) return false;
+
+        // Distance Checks
+        if (maxPublicTransportDistance != null &&
+            listing.distanceToPublicTransportKm > maxPublicTransportDistance) {
+          return false;
+        }
+        if (maxProximHessoDistance != null &&
+            listing.proximHessoKm > maxProximHessoDistance) {
+          return false;
+        }
+
+        // Amenities Check
+        if (amenities != null && amenities.isNotEmpty) {
+          for (final amenity in amenities) {
+            if (listing.amenities[amenity] != true) {
+              return false; // Listing is missing a required amenity
+            }
+          }
+        }
+
+        // If all checks pass, keep the listing in the list
+        return true;
+      }).toList();
+    });
+  }
+
+  // Get all listings as a stream
   // ----------------------------------------------------------------------------
   // Streams (sans index composite requis)
   // ----------------------------------------------------------------------------
@@ -118,6 +205,45 @@ class ListingService {
       // ignore: avoid_print
       print('Error deleting listing: $e');
       rethrow;
+    }
+  }
+
+  // Function to search for addresses using Nominatim API
+  Future<List<OsmPlace>> searchAddresses(String query, bool city) async {
+    if (query.isEmpty) {
+      return [];
+    }
+
+    // Build the Nominatim API URL with search parameters
+    var url = Uri.https('nominatim.openstreetmap.org', '/search', {
+      'format': 'json',
+      'addressdetails': '1',
+      'limit': '10',
+      'countrycodes': 'ch',
+    });
+
+    // search for city only if city is true
+    if (city) {
+      url = url.replace(
+        queryParameters: {...url.queryParameters, 'city': query},
+      );
+    } else {
+      url = url.replace(queryParameters: {...url.queryParameters, 'q': query});
+    }
+
+    // Add User-Agent header as required by Nominatim usage policy
+    final response = await http.get(
+      url,
+      headers: {'User-Agent': 'PropertyFinderApp/1.0'},
+    );
+
+    if (response.statusCode == 200) {
+      // Parse the JSON response
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((json) => OsmPlace.fromJson(json)).toList();
+    } else {
+      print('Error searching addresses: ${response.statusCode}');
+      return [];
     }
   }
 }

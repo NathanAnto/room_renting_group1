@@ -96,7 +96,6 @@ class SingleListingScreen extends StatelessWidget {
             StudentListingItinerary(listing: listing),
             const SizedBox(height: 12),
             NearbyPlacesList(lat: listing.lat, lon: listing.lng, limit: 10),
-
           ],
         ),
       ),
@@ -116,14 +115,14 @@ class _InfoCard extends StatelessWidget {
 
     final chips = <Widget>[
       _Chip(text: listing.status),
-      if (listing.amenities['is_furnished'] == true) const _Chip(text: 'Meublé'),
-      if (listing.amenities['wifi_incl'] == true) const _Chip(text: 'WiFi inclus'),
-      if (listing.amenities['charges_incl'] == true) const _Chip(text: 'Charges incluses'),
+      if (listing.amenities['is_furnished'] == true) const _Chip(text: 'Furnished'),
+      if (listing.amenities['wifi_incl'] == true) const _Chip(text: 'WiFi included'),
+      if (listing.amenities['charges_incl'] == true) const _Chip(text: 'Charges included'),
       if (listing.amenities['car_park'] == true) const _Chip(text: 'Parking'),
     ];
 
     return _Section(
-      title: 'Informations',
+      title: 'Information',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -139,13 +138,13 @@ class _InfoCard extends StatelessWidget {
             children: [
               _InfoStat(
                 icon: Icons.euro_symbol_rounded,
-                label: 'Loyer',
-                value: '${listing.rentPerMonth.toStringAsFixed(0)} CHF/mois',
+                label: 'Rent',
+                value: '${listing.rentPerMonth.toStringAsFixed(0)} CHF/month',
               ),
               const SizedBox(width: 16),
               _InfoStat(
                 icon: Icons.auto_graph_rounded,
-                label: 'Predit',
+                label: 'Predicted',
                 value: '${listing.predictedRentPerMonth.toStringAsFixed(0)} CHF',
               ),
             ],
@@ -161,7 +160,7 @@ class _InfoCard extends StatelessWidget {
               const SizedBox(width: 16),
               _InfoStat(
                 icon: Icons.meeting_room_outlined,
-                label: 'Pièces',
+                label: 'Rooms',
                 value: listing.numRooms > 0 ? '${listing.numRooms}' : '—',
               ),
             ],
@@ -265,16 +264,16 @@ class _AvailabilitySection extends StatelessWidget {
 
     if (availability.windows.isEmpty) {
       return _Section(
-        title: 'Disponibilités',
+        title: 'Availabilites',
         child: Text(
-          'Aucune disponibilité renseignée.',
+          'No availabilities',
           style: TextStyle(color: theme.colorScheme.mutedForeground),
         ),
       );
     }
 
     return _Section(
-      title: 'Disponibilités',
+      title: 'Availabilites',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -282,11 +281,7 @@ class _AvailabilitySection extends StatelessWidget {
           const SizedBox(height: 8),
           _Legend(),
           const SizedBox(height: 12),
-          _AvailabilityCalendar(availability: availability),
-          if (availability.blackoutDates.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _BlackoutList(blackouts: availability.blackoutDates),
-          ],
+          _AvailabilityCalendar(availability: availability)
         ],
       ),
     );
@@ -316,7 +311,7 @@ class _WindowsSummary extends StatelessWidget {
             color: theme.colorScheme.muted,
           ),
           child: Text(
-            "$start → $end (fin excl.)$label",
+            "$start → $end (end excl.)$label",
             style: TextStyle(color: theme.colorScheme.mutedForeground, fontSize: 12),
           ),
         );
@@ -340,11 +335,7 @@ class _Legend extends StatelessWidget {
       children: [
         dot(Colors.green.shade400),
         const SizedBox(width: 6),
-        const Text('Disponible'),
-        const SizedBox(width: 16),
-        dot(Colors.orange.shade400, child: const Icon(Icons.close, size: 12, color: Colors.white)),
-        const SizedBox(width: 6),
-        const Text('Blackout'),
+        const Text('Available'),
         const SizedBox(width: 16),
         Container(
           width: 16,
@@ -355,42 +346,7 @@ class _Legend extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        const Text('Indisponible'),
-      ],
-    );
-  }
-}
-
-class _BlackoutList extends StatelessWidget {
-  const _BlackoutList({required this.blackouts});
-  final List<String> blackouts;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = ShadTheme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Jours “blackout”',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.foreground,
-            )),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: blackouts.map((d) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.muted,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(d, style: TextStyle(color: theme.colorScheme.mutedForeground, fontSize: 12)),
-            );
-          }).toList(),
-        ),
+        const Text('Unavailable (outside windows)'),
       ],
     );
   }
@@ -405,56 +361,59 @@ class _AvailabilityCalendar extends StatefulWidget {
 }
 
 class _AvailabilityCalendarState extends State<_AvailabilityCalendar> {
-  late final List<DateTime> _months; // 1er du mois (UTC)
-  late int _index; // mois courant affiché
-  final _monthNamesFr = const [
-    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
+  late DateTime _currentMonth;
+
+  final _monthNames = const [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  @override
+    @override
   void initState() {
     super.initState();
-    _months = _buildCoveredMonths(widget.availability.windows);
-    _index = _initialMonthIndex(_months, widget.availability);
+    _currentMonth = _getInitialMonth(widget.availability);
   }
 
   @override
   void didUpdateWidget(covariant _AvailabilityCalendar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.availability != widget.availability) {
-      final months = _buildCoveredMonths(widget.availability.windows);
-      final idx = _initialMonthIndex(months, widget.availability);
+      // If listing data changes, reset the calendar to the best initial month
       setState(() {
-        _months
-          ..clear()
-          ..addAll(months);
-        _index = idx;
+        _currentMonth = _getInitialMonth(widget.availability);
       });
     }
   }
 
+  void _goToPreviousMonth() {
+    setState(() {
+      _currentMonth = (_currentMonth.month == 1)
+          ? DateTime.utc(_currentMonth.year - 1, 12, 1)
+          : DateTime.utc(_currentMonth.year, _currentMonth.month - 1, 1);
+    });
+  }
+
+  void _goToNextMonth() {
+    setState(() {
+      _currentMonth = (_currentMonth.month == 12)
+          ? DateTime.utc(_currentMonth.year + 1, 1, 1)
+          : DateTime.utc(_currentMonth.year, _currentMonth.month + 1, 1);
+    });
+  }
   @override
   Widget build(BuildContext context) {
-    final theme = ShadTheme.of(context);
-
-    if (_months.isEmpty) {
-      return Text('Aucune période à afficher.',
-          style: TextStyle(color: theme.colorScheme.mutedForeground));
-    }
-
-    final month = _months[_index];
-    final title = '${_monthNamesFr[month.month - 1]} ${month.year}';
+    final title = '${_monthNames[_currentMonth.month - 1]} ${_currentMonth.year}';
 
     return Column(
       children: [
-        // Header avec navigation mois précédent/suivant
+        // Header with navigation month précédent/suivant
         Row(
           children: [
+            // Button is always enabled for infinite traversal
             IconButton(
-              onPressed: _index > 0 ? () => setState(() => _index--) : null,
+              onPressed: _goToPreviousMonth,
               icon: const Icon(Icons.chevron_left),
-              tooltip: 'Mois précédent',
+              tooltip: 'Previous month',
             ),
             Expanded(
               child: Center(
@@ -464,12 +423,11 @@ class _AvailabilityCalendarState extends State<_AvailabilityCalendar> {
                 ),
               ),
             ),
+            // Button is always enabled for infinite traversal
             IconButton(
-              onPressed: _index < _months.length - 1
-                  ? () => setState(() => _index++)
-                  : null,
+              onPressed: _goToNextMonth,
               icon: const Icon(Icons.chevron_right),
-              tooltip: 'Mois suivant',
+              tooltip: 'Next month',
             ),
           ],
         ),
@@ -477,54 +435,32 @@ class _AvailabilityCalendarState extends State<_AvailabilityCalendar> {
 
         // Grille calendrier pour le mois courant
         _MonthGrid(
-          month: month,
+          month: _currentMonth,
           availability: widget.availability,
         ),
       ],
     );
   }
+    // Determines the best starting month to display.
+  static DateTime _getInitialMonth(ListingAvailability availability) {
+    final now = DateTime.now().toUtc();
+    final thisMonth = DateTime.utc(now.year, now.month, 1);
 
-  // --- helpers ---
-
-  static List<DateTime> _buildCoveredMonths(List<AvailabilityWindow> windows) {
-    if (windows.isEmpty) return [];
-
-    // tri par start
-    final sorted = [...windows]..sort((a, b) => a.start.compareTo(b.start));
-    final first = sorted.first.start;
-    // end est exclusif → on affiche jusqu'au mois précédent end (si end = 2025-10-01, on s'arrête à septembre)
-    final lastEnd = sorted.map((w) => w.end).reduce((a, b) => a.isAfter(b) ? a : b);
-
-    final months = <DateTime>[];
-    var cursor = DateTime.utc(first.year, first.month, 1);
-    final limitExcl = DateTime.utc(lastEnd.year, lastEnd.month, 1);
-
-    // si aucune fenêtre ne couvre "today", on s'assure d'au moins inclure le mois de 'nextAvailableStart' si présent
-    while (cursor.isBefore(limitExcl)) {
-      months.add(cursor);
-      cursor = (cursor.month == 12)
-          ? DateTime.utc(cursor.year + 1, 1, 1)
-          : DateTime.utc(cursor.year, cursor.month + 1, 1);
+    // If there are no windows, just default to the current month.
+    if (availability.windows.isEmpty) {
+      return thisMonth;
     }
 
-    return months;
-  }
+    // Find the earliest date across all windows.
+    final firstAvailableDay = availability.windows
+        .map((w) => w.start)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    final firstAvailableMonth =
+        DateTime.utc(firstAvailableDay.year, firstAvailableDay.month, 1);
 
-  static int _initialMonthIndex(List<DateTime> months, ListingAvailability a) {
-    if (months.isEmpty) return 0;
-    final today = DateTime.now().toUtc();
-    final todayYm = DateTime.utc(today.year, today.month, 1);
-
-    final idxToday = months.indexWhere((m) => m.year == todayYm.year && m.month == todayYm.month);
-    if (idxToday != -1) return idxToday;
-
-    final next = a.nextAvailableStart;
-    if (next != null) {
-      final ym = DateTime.utc(next.year, next.month, 1);
-      final idxNext = months.indexWhere((m) => m.year == ym.year && m.month == ym.month);
-      if (idxNext != -1) return idxNext;
-    }
-    return 0;
+    // If the current month is after the first availability, show the current month.
+    // Otherwise, start the calendar at the first available month.
+    return thisMonth.isAfter(firstAvailableMonth) ? thisMonth : firstAvailableMonth;
   }
 }
 
@@ -542,7 +478,7 @@ class _MonthGrid extends StatelessWidget {
     final theme = ShadTheme.of(context);
 
     // Labels des jours (Lun → Dim)
-    final weekdayLabels = const ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    final weekdayLabels = const ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     final firstDay = DateTime.utc(month.year, month.month, 1);
     final daysInMonth = DateTime.utc(month.year, month.month + 1, 0).day;
@@ -584,8 +520,7 @@ class _MonthGrid extends StatelessWidget {
                 final key = _ymd(dateUtc);
 
                 final inWindow = availability.windows.any((w) => w.containsDateUtc(dateUtc));
-                final isBlackout = availability.blackoutDates.contains(key);
-                final isAvailable = inWindow && !isBlackout;
+                final isAvailable = inWindow;
 
                 return Expanded(
                   child: Padding(
@@ -593,7 +528,6 @@ class _MonthGrid extends StatelessWidget {
                     child: _DayCell(
                       day: dayNum,
                       available: isAvailable,
-                      blackout: isBlackout,
                       muted: !inWindow,
                     ),
                   ),
@@ -614,13 +548,11 @@ class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.day,
     required this.available,
-    required this.blackout,
     required this.muted,
   });
 
   final int day;
   final bool available;
-  final bool blackout;
   final bool muted;
 
   @override
@@ -640,11 +572,6 @@ class _DayCell extends StatelessWidget {
       fill = Colors.green.shade400;
       text = Colors.white;
     }
-    if (blackout) {
-      fill = Colors.orange.shade400;
-      text = Colors.white;
-      innerIcon = const Icon(Icons.close, size: 12, color: Colors.white);
-    }
 
     return AspectRatio(
       aspectRatio: 1, // carré
@@ -659,7 +586,7 @@ class _DayCell extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // pastille de fond (si dispo/blackout)
+            // pastille de fond (si dispo)
             Container(
               width: 28,
               height: 28,
