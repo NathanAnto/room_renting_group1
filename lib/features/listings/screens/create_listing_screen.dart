@@ -47,6 +47,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   // Autocomplete Nominatim
   List<_OsmPlace> _suggestions = [];
   Timer? _debounce;
+  _OsmPlace? _selectedPlace; // <--- ajouté
 
   // --- Étape 2 (après prédiction) ---
   final _titleCtrl = TextEditingController();
@@ -129,6 +130,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     }
   }
 
+  // Extrait la ville depuis un _OsmPlace (priorité city > town > village)
+  String _extractCityFromOsm(_OsmPlace p) {
+    final s = (p.city ?? p.town ?? p.village ?? '').trim();
+    return s;
+  }
+
   // ------------------- Étape 1 : Nominatim -------------------
   void _onAddressChanged(String q) {
     _debounce?.cancel();
@@ -164,6 +171,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   }
 
   Future<void> _selectPlace(_OsmPlace p) async {
+    _selectedPlace = p; // <--- enregistré
     _addressCtrl.text = p.displayName;
     _suggestions = [];
     _lat = p.lat;
@@ -384,6 +392,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     final user = FirebaseAuth.instance.currentUser;
     final ownerId = user?.uid ?? '';
 
+    // ville auto depuis _selectedPlace (si renseignée)
+    final inferredCity = _selectedPlace == null ? '' : _extractCityFromOsm(_selectedPlace!);
+
     final listing = Listing(
       id: null,
       ownerId: ownerId,
@@ -393,7 +404,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       rentPerMonth: _pDouble(_rentCtrl.text),
       predictedRentPerMonth:
           _predictedCtrl.text.trim().isEmpty ? 0 : _pDouble(_predictedCtrl.text),
-      city: '', // optionnel (peut être inféré si tu veux)
+      city: inferredCity, // <--- rempli automatiquement
       addressLine: _addressCtrl.text.trim(),
       lat: _lat ?? 0,
       lng: _lng ?? 0,
@@ -745,12 +756,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               icon: const Icon(Icons.add),
               label: const Text('Ajouter une fenêtre'),
             ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: _pickBlackout,
-              icon: const Icon(Icons.event_busy),
-              label: const Text('Ajouter un blackout'),
-            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -855,5 +860,5 @@ class _OsmPlace {
       town: addr['town']?.toString(),
       village: addr['village']?.toString(),
     );
-    }
+  }
 }
