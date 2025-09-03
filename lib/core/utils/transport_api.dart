@@ -12,7 +12,7 @@ Future<Map<String, dynamic>> getItinerariesNext2hByCoords({
   int pageSize = 6, // nombre de connexions renvoyées par page (typique de l’API)
 }) async {
   // -- Helpers ---------------------------------------------------------------
-  Future<String> _resolveToQueryParam(double lat, double lon) async {
+  Future<String> resolveToQueryParam(double lat, double lon) async {
     final uri = Uri.https(
       'transport.opendata.ch',
       '/v1/locations',
@@ -42,7 +42,7 @@ Future<Map<String, dynamic>> getItinerariesNext2hByCoords({
     throw Exception('Résolution de station invalide pour $lat,$lon');
   }
 
-  DateTime? _extractDeparture(Map<String, dynamic> connection) {
+  DateTime? extractDeparture(Map<String, dynamic> connection) {
     // Format API: connection['from']['departure'] est un ISO-8601
     try {
       final from = connection['from'] as Map<String, dynamic>?;
@@ -55,8 +55,8 @@ Future<Map<String, dynamic>> getItinerariesNext2hByCoords({
   }
 
   // -- Résolution des extrémités --------------------------------------------
-  final fromParam = await _resolveToQueryParam(fromLat, fromLon);
-  final toParam   = await _resolveToQueryParam(toLat, toLon);
+  final fromParam = await resolveToQueryParam(fromLat, fromLon);
+  final toParam   = await resolveToQueryParam(toLat, toLon);
 
   // Fenêtre temporelle: maintenant → +2h (en heure locale de l’app)
   final now = DateTime.now();
@@ -94,7 +94,7 @@ Future<Map<String, dynamic>> getItinerariesNext2hByCoords({
 
     // Filtrer celles dans la fenêtre [now, windowEnd]
     for (final c in conns) {
-      final dep = _extractDeparture(c);
+      final dep = extractDeparture(c);
       if (dep == null) continue;
       if (dep.isBefore(now)) continue; // avant fenêtre
       if (dep.isAfter(windowEnd)) {
@@ -106,7 +106,7 @@ Future<Map<String, dynamic>> getItinerariesNext2hByCoords({
     }
 
     // Si la dernière connexion de la page dépasse la fenêtre, on arrête.
-    final lastDep = _extractDeparture(conns.last);
+    final lastDep = extractDeparture(conns.last);
     if (lastDep != null && lastDep.isAfter(windowEnd)) {
       reachedEnd = true;
     }

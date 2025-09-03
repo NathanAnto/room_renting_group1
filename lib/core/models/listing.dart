@@ -1,4 +1,5 @@
 // lib/core/models/listing.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:room_renting_group1/core/models/ListingAvailability.dart';
 
@@ -25,6 +26,13 @@ class Listing {
   final DateTime updatedAt;
   final List<String> images;
 
+  // --- AJOUTS POUR LES AVIS ---
+  /// Note moyenne du logement, calculée à partir des avis des étudiants.
+  final double averageRating;
+  /// Nombre total d'avis reçus pour ce logement.
+  final int reviewCount;
+  // ---------------------------
+
   Listing({
     this.id,
     required this.ownerId,
@@ -47,6 +55,8 @@ class Listing {
     required this.createdAt,
     required this.updatedAt,
     required this.images,
+    this.averageRating = 0.0,
+    this.reviewCount = 0,
   });
 
   factory Listing.fromFirestore(DocumentSnapshot doc) {

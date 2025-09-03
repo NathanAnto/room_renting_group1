@@ -207,7 +207,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: DropdownButtonFormField<String>(
-                      value: _selectedSchool,
+                      initialValue: _selectedSchool,
                       hint: const Text('Sélectionnez votre HES'),
                       decoration: const InputDecoration(border: OutlineInputBorder()),
                       items: hesSchools.map((String school) {

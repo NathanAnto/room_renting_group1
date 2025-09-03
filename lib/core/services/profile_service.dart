@@ -49,7 +49,7 @@ class ProfileService {
       final docSnapshot = await _usersCollection.doc(userId).get();
       if (docSnapshot.exists) {
         // The UserModel.fromFirestore factory will handle the data conversion
-        return UserModel.fromFirestore(docSnapshot as DocumentSnapshot<Map<String, dynamic>>);
+        return UserModel.fromFirestore(docSnapshot);
       }
     } catch (e) {
       print("Error fetching user profile: $e");

@@ -41,6 +41,10 @@ dependencies:
   country_picker: ^2.0.27
   lucide_icons_flutter: ^3.0.9
 
+  #review
+  intl: ^0.20.2
+  timeago: ^3.6.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -139,6 +139,25 @@ class BookingService {
       }).toList();
     });
   }
+  
+  // =========== NOUVELLE MÉTHODE AJOUTÉE ICI ===========
+  /// Récupère un stream des réservations terminées pour un propriétaire, prêtes à être évaluées.
+  Stream<List<Booking>> getCompletedBookingsForHomeowner(String ownerId) {
+    return _db
+        .collection('bookings')
+        .where('homeownerid', isEqualTo: ownerId)
+        .where('status', isEqualTo: 'accepted') // Doit être une réservation acceptée
+        .where('end', isLessThan: Timestamp.now()) // Et la date de fin doit être passée
+        .orderBy('end', descending: true) // Trie de la plus récente à la plus ancienne
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return Booking.fromJson(doc.data(), doc.id);
+      }).toList();
+    });
+  }
+  // ======================================================
+
 
   Stream<List<Booking>> getBookingsByStudentId(String studentId) {
     return _db
@@ -331,4 +350,3 @@ class _Window {
   final DateTime end;
   _Window(this.start, this.end);
 }
-

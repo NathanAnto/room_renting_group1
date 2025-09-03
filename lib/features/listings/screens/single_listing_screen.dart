@@ -11,6 +11,9 @@ import '../widgets/transport_widget.dart';
 import '../widgets/places_widget.dart';
 import '../widgets/booking_planner_button.dart';
 
+// Import added for the review feature
+import '../../review/widgets/listing_reviews_widget.dart';
+
 class SingleListingScreen extends StatelessWidget {
   final Listing listing;
 
@@ -97,6 +100,18 @@ class SingleListingScreen extends StatelessWidget {
             StudentListingItinerary(listing: listing),
             const SizedBox(height: 12),
             NearbyPlacesList(lat: listing.lat, lon: listing.lng, limit: 10),
+
+            // ======================================================
+            // ## SECTION D'AVIS AJOUTÉE ICI ##
+            // ======================================================
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _Section(
+                title: 'Student Reviews',
+                child: ListingReviewsWidget(propertyId: listing.id!),
+              ),
+            ),
           ],
         ),
       ),
