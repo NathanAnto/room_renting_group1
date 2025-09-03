@@ -72,7 +72,6 @@ class SingleListingScreen extends StatelessWidget {
               child: _InfoCard(listing: listing),
             ),
             BookingPlannerButton(listing: listing),
-
             const SizedBox(height: 16),
 
             // --- Disponibilités (Calendrier) ---
@@ -264,9 +263,11 @@ class _AvailabilitySection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
 
+
+
     if (availability.windows.isEmpty) {
       return _Section(
-        title: 'Availabilites',
+        title: 'Availabilities',
         child: Text(
           'No availabilities',
           style: TextStyle(color: theme.colorScheme.mutedForeground),
@@ -275,15 +276,12 @@ class _AvailabilitySection extends StatelessWidget {
     }
 
     return _Section(
-      title: 'Availabilites',
+      title: 'Availabilities',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _WindowsSummary(windows: availability.windows),
           const SizedBox(height: 8),
-          _Legend(),
-          const SizedBox(height: 12),
-          _AvailabilityCalendar(availability: availability)
         ],
       ),
     );

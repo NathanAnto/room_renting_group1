@@ -124,6 +124,35 @@ class BookingService {
   /// Supprime un booking (utilitaire)
   Future<void> deleteBooking(String bookingId) => refuseBooking(bookingId);
 
+  // --- ADDED THIS METHOD ---
+  /// Stream des bookings PENDING pour un propriétaire.
+  Stream<List<Booking>> getPendingBookingsStreamForHomeowner(String homeownerId) {
+    return _db
+        .collection('bookings')
+        .where('homeownerid', isEqualTo: homeownerId)
+        .where('status', isEqualTo: 'pending')
+        .orderBy('start')
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return Booking.fromJson(doc.data(), doc.id);
+      }).toList();
+    });
+  }
+
+  Stream<List<Booking>> getBookingsByStudentId(String studentId) {
+    return _db
+        .collection('bookings')
+        .where('studentid', isEqualTo: studentId)
+        .orderBy('start')
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return Booking.fromJson(doc.data(), doc.id);
+      }).toList();
+    });
+  }  
+
   /// Liste bookings d’un propriétaire (option: status)
   Future<List<Booking>> listForHomeowner({
     required String homeownerId,
@@ -140,7 +169,7 @@ class BookingService {
     final qs = await q.limit(limit).get();
     return qs.docs
         .map((d) =>
-            Booking.fromJson(Map<String, dynamic>.from(d.data() as Map)))
+            Booking.fromJson(d.data(), d.id))
         .toList();
   }
 
@@ -160,7 +189,7 @@ class BookingService {
     final qs = await q.limit(limit).get();
     return qs.docs
         .map((d) =>
-            Booking.fromJson(Map<String, dynamic>.from(d.data() as Map)))
+            Booking.fromJson(d.data(), d.id))
         .toList();
   }
 
@@ -180,7 +209,7 @@ class BookingService {
     final qs = await q.limit(limit).get();
     return qs.docs
         .map((d) =>
-            Booking.fromJson(Map<String, dynamic>.from(d.data() as Map)))
+            Booking.fromJson(d.data(), d.id))
         .toList();
   }
 
@@ -302,3 +331,4 @@ class _Window {
   final DateTime end;
   _Window(this.start, this.end);
 }
+

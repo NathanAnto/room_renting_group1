@@ -4,13 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 enum BookingStatus { pending, accepted }
 
 extension BookingStatusX on BookingStatus {
-  String get value => toString().split('.').last; // "pending" / "accepted"
+  String get value => toString().split('.').last; // "pending" / "accepted" / "finished"
   static BookingStatus from(String s) =>
       s == 'accepted' ? BookingStatus.accepted : BookingStatus.pending;
 }
 
 class Booking {
-  // Champs demandés
+  final String? id;
   final String listingid;      // id de l’annonce
   final String homeownerid;    // propriétaire (host)
   final String studentid;      // locataire (student)
@@ -21,6 +21,7 @@ class Booking {
   final double price;          // listing.price_per_month / 30 * nights
 
   const Booking({
+    this.id,
     required this.listingid,
     required this.homeownerid,
     required this.studentid,
@@ -79,6 +80,7 @@ class Booking {
     double? price,
   }) {
     return Booking(
+      id: id,
       listingid: listingid ?? this.listingid,
       homeownerid: homeownerid ?? this.homeownerid,
       studentid: studentid ?? this.studentid,
@@ -93,6 +95,7 @@ class Booking {
   // --- Firestore (optionnel mais pratique) ---
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'listingid': listingid,
         'homeownerid': homeownerid,
         'studentid': studentid,
@@ -103,7 +106,7 @@ class Booking {
         'price': price,
       };
 
-  factory Booking.fromJson(Map<String, dynamic> json) {
+  factory Booking.fromJson(Map<String, dynamic> json, String docId) {
     DateTime _toDate(dynamic v) {
       if (v is Timestamp) return v.toDate().toUtc();
       if (v is String) return DateTime.parse(v).toUtc();
@@ -112,6 +115,7 @@ class Booking {
     }
 
     return Booking(
+      id: docId,
       listingid: (json['listingid'] ?? '').toString(),
       homeownerid: (json['homeownerid'] ?? '').toString(),
       studentid: (json['studentid'] ?? '').toString(),
