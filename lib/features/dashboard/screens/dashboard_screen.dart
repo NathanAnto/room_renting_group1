@@ -1,10 +1,11 @@
+// lib/screens/dashboard_screen.dart (ou le chemin correspondant)
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:room_renting_group1/core/models/booking.dart';
 import 'package:room_renting_group1/core/models/user_model.dart';
 import 'package:room_renting_group1/core/services/booking_service.dart';
 import 'package:room_renting_group1/features/listings/screens/single_listing_screen.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:room_renting_group1/features/listings/screens/create_listing_screen.dart';
@@ -21,11 +22,15 @@ import 'package:room_renting_group1/features/review/screens/rate_student_screen.
 
 import '../../../core/services/profile_service.dart';
 
-// --- Thème de couleurs inspiré des écrans de login ---
+// --- Thème de couleurs cohérent ---
 const Color primaryBlue = Color(0xFF0D47A1);
 const Color lightGreyBackground = Color(0xFFF8F9FA);
 const Color darkTextColor = Color(0xFF343A40);
 const Color lightTextColor = Color(0xFF6C757D);
+const Color goldColor = Color(0xFFFFC107);
+const Color greenColor = Colors.green;
+const Color redColor = Colors.red;
+
 
 // Classe helper pour masquer la scrollbar
 class _NoScrollbarBehavior extends ScrollBehavior {
@@ -49,7 +54,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final BookingService _bookingService = BookingService();
   final ProfileService _profileService = ProfileService();
 
-  String? _userRole;
   UserModel? _currentUser;
   bool _isLoading = true;
 
@@ -69,23 +73,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     try {
       final userProfile = await _profileService.getUserProfile(user.uid);
+      if (!mounted) return;
+
       final listings =
           await _listingService.getListingsByOwner(user.uid).first;
+      if (!mounted) return;
 
-      if (mounted) {
-        setState(() {
-          _currentUser = userProfile;
-          _userRole = userProfile?.role.name;
-          _listingsMap = {
-            for (var l in listings)
-              if (l.id != null) l.id!: l,
-          };
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _currentUser = userProfile;
+        _listingsMap = {
+          for (var l in listings)
+            if (l.id != null) l.id!: l,
+        };
+        _isLoading = false;
+      });
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
       print("Error fetching user data: $e");
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -106,14 +110,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildBody() {
     final user = _authService.currentUser;
-    if (user == null) {
+    if (user == null || _currentUser == null) {
       return const Center(child: Text('Please log in.'));
     }
 
     Widget content;
-    if (_userRole == 'homeowner') {
+    if (_currentUser!.role == UserRole.homeowner) {
       content = _buildHomeownerView(user.uid);
-    } else if (_userRole == 'student') {
+    } else if (_currentUser!.role == UserRole.student) {
       content = _buildStudentView(user.uid);
     } else {
       content = const Center(child: Text('Welcome to your dashboard.'));
@@ -155,13 +159,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           title: 'Pending Requests',
           stream: _bookingService.getPendingBookingsStreamForHomeowner(ownerId),
           itemBuilder: (booking) {
-            final listingTitle =
-                _listingsMap[booking.listingid]?.title ?? 'A Listing';
-            return _PendingBookingCard(
-              booking: booking,
-              listingTitle: listingTitle,
-              onAccept: () => _handleAcceptBooking(booking.id),
-              onRefuse: () => _handleRefuseBooking(booking.id),
+            return FutureBuilder<UserModel?>(
+              future: _profileService.getUserProfile(booking.studentid),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return Card(
+                    color: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: const SizedBox(
+                      height: 100,
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: primaryBlue)),
+                    ),
+                  );
+                }
+                final student = snapshot.data!;
+                return _PendingBookingRequestCard(
+                  booking: booking,
+                  student: student,
+                  onAccept: () => _handleAcceptBooking(booking.id),
+                  onDecline: () => _handleRefuseBooking(booking.id),
+                );
+              },
             );
           },
         ),
@@ -203,15 +222,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildStudentView(String studentId) {
-    return _buildSection<Booking>(
-      title: 'My Bookings',
-      stream: _bookingService.getBookingsByStudentId(studentId),
-      itemBuilder: (booking) => _BookingCard(
-        booking: booking,
-        onReviewSubmitted: _refreshData,
-      ),
-      emptyMessage: 'You have no bookings yet.',
-      showTitle: false,
+    return ListView(
+       padding: const EdgeInsets.symmetric(horizontal: 16),
+      children: [
+        _buildSection<Booking>(
+          title: 'My Bookings',
+          stream: _bookingService.getBookingsByStudentId(studentId),
+          itemBuilder: (booking) => _BookingCard(
+            booking: booking,
+            onReviewSubmitted: _refreshData,
+          ),
+          emptyMessage: 'You have no bookings yet.',
+        ),
+      ],
     );
   }
 
@@ -220,7 +243,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Stream<List<T>> stream,
     required Widget Function(T item) itemBuilder,
     String emptyMessage = '',
-    bool showTitle = true,
   }) {
     return StreamBuilder<List<T>>(
       stream: stream,
@@ -236,7 +258,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
-          return emptyMessage.isNotEmpty && showTitle
+          return emptyMessage.isNotEmpty
               ? Padding(
                   padding: const EdgeInsets.symmetric(vertical: 40),
                   child: Center(
@@ -249,15 +271,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (showTitle)
-              Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 16),
-                child: Text(title,
-                    style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: darkTextColor)),
-              ),
+            Padding(
+              padding: const EdgeInsets.only(top: 24, bottom: 16),
+              child: Text(title,
+                  style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: darkTextColor)),
+            ),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -273,142 +294,256 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // --- Handlers ---
-  Future<void> _handleAcceptBooking(String? bookingId) async {
-    if (bookingId == null) return;
-    try {
-      await _bookingService.acceptBooking(bookingId);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Booking accepted!')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to accept booking: $e')));
+Future<void> _handleAcceptBooking(String? bookingId) async {
+  if (bookingId == null) return;
+  try {
+    await _bookingService.acceptBooking(bookingId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Booking accepted!'), backgroundColor: greenColor),
+    );
+  } catch (e, stackTrace) {
+    // --- GESTION D'ERREUR FINALE ET ROBUSTE ---
+
+    print("--- DÉBUT DE L'ERREUR DÉTAILLÉE ---");
+    print('Type de l\'objet d\'erreur: ${e.runtimeType}');
+    print('Erreur attrapée: $e');
+    print('Stack Trace: $stackTrace');
+    print("--- FIN DE L'ERREUR DÉTAILLÉE ---");
+
+    String errorMessage = "An unknown error occurred.";
+
+    if (e is FirebaseException) {
+      // Cas 1: Erreur Firebase standard
+      errorMessage = e.message ?? "Firebase error without a message.";
+    } else {
+      // Cas 2: C'est une NativeError ou autre. On analyse sa version texte.
+      String potentialMessage = e.toString();
+      
+      // On cherche des mots-clés typiques d'erreur Firestore
+      if (potentialMessage.contains("PERMISSION_DENIED")) {
+        errorMessage = "Permission denied. Please check your Firestore security rules.";
+      } else if (potentialMessage.contains("NOT_FOUND")) {
+        errorMessage = "Document not found.";
+      } else {
+        // Si aucun mot-clé n'est trouvé, on affiche le message brut qui est souvent utile
+        errorMessage = potentialMessage;
       }
     }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Failed to accept booking: $errorMessage"), backgroundColor: redColor),
+    );
   }
+}
+
 
   Future<void> _handleRefuseBooking(String? bookingId) async {
     if (bookingId == null) return;
     try {
       await _bookingService.refuseBooking(bookingId);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Booking refused.')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Booking refused.')),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to refuse booking: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to refuse booking: $e'), backgroundColor: redColor),
+      );
     }
   }
 
   Future<void> _confirmDelete(Listing listing) async {
+    final currentContext = context;
     final confirmed = await showDialog<bool>(
-      context: context,
+      context: currentContext,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Deletion'),
-        content: const Text(
-            'Are you sure you want to delete this listing? This action cannot be undone.'),
+        content: const Text('Are you sure you want to delete this listing? This action cannot be undone.'),
         actions: [
           TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(false)),
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
           TextButton(
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
-              onPressed: () => Navigator.of(context).pop(true)),
+            style: TextButton.styleFrom(foregroundColor: redColor),
+            child: const Text('Delete'),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
         ],
       ),
     );
+
+    if (!mounted) return;
+
     if (confirmed == true && listing.id != null) {
       try {
         await _listingService.deleteListing(listing.id!);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Listing deleted successfully.')));
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Listing deleted successfully.')),
+        );
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error deleting listing: $e')));
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting listing: $e'), backgroundColor: redColor),
+        );
       }
     }
   }
 }
 
-// --- Custom Cards ---
-
-class _PendingBookingCard extends StatelessWidget {
+// --- CARTE DE DEMANDE DE RÉSERVATION (VERSION MATERIAL) ---
+class _PendingBookingRequestCard extends StatelessWidget {
   final Booking booking;
-  final String listingTitle;
+  final UserModel student;
   final VoidCallback onAccept;
-  final VoidCallback onRefuse;
-  static final ProfileService _profileService = ProfileService();
+  final VoidCallback onDecline;
+  final bool isLoading;
 
-  const _PendingBookingCard(
-      {required this.booking,
-      required this.listingTitle,
-      required this.onAccept,
-      required this.onRefuse});
+  const _PendingBookingRequestCard({
+    required this.booking,
+    required this.student,
+    required this.onAccept,
+    required this.onDecline,
+    this.isLoading = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('MMM d, yyyy');
-    final dateRange =
-        '${dateFormat.format(booking.start)} - ${dateFormat.format(booking.end)}';
+    final DateFormat formatter = DateFormat('d MMM', 'fr_FR');
+    final String dateRange =
+        '${formatter.format(booking.start)} - ${formatter.format(booking.end)}';
 
-    return ShadCard(
-      backgroundColor: Colors.white,
-      title: Text(listingTitle,
-          style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-              color: darkTextColor)),
-      description: Text(dateRange,
-          style: const TextStyle(color: lightTextColor, fontSize: 15)),
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          ShadButton.outline(onPressed: onRefuse, child: const Text('Refuse')),
-          const SizedBox(width: 8),
-          ShadButton(
-            backgroundColor: primaryBlue,
-            onPressed: onAccept,
-            child: const Text('Accept', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-      child: FutureBuilder<UserModel?>(
-        future: _profileService.getUserProfile(booking.studentid),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData)
-            return const Text('Loading student...',
-                style: TextStyle(fontStyle: FontStyle.italic));
-          final student = snapshot.data!;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              Text('From: ${student.displayName}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: darkTextColor)),
-              if (student.phone != null && student.phone!.isNotEmpty)
-                Text('Phone: ${student.phone}',
-                    style: const TextStyle(color: lightTextColor)),
-              if (student.email.isNotEmpty)
-                Text('Email: ${student.email}',
-                    style: const TextStyle(color: lightTextColor)),
-            ],
-          );
-        },
+    return Card(
+      color: Colors.white,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStudentHeader(),
+            const Divider(height: 24),
+            _buildBookingDetail(Icons.calendar_month_outlined, 'Dates', dateRange),
+            const SizedBox(height: 12),
+            _buildBookingDetail(Icons.nightlight_outlined, 'Nuits',
+                '${booking.end.difference(booking.start).inDays}'),
+            const Divider(height: 24),
+            _buildActionButtons(),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _buildStudentHeader() {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 24,
+          backgroundColor: primaryBlue.withOpacity(0.1),
+          backgroundImage:
+              (student.photoUrl != null && student.photoUrl!.isNotEmpty)
+                  ? NetworkImage(student.photoUrl!)
+                  : null,
+          child: (student.photoUrl == null || student.photoUrl!.isEmpty) &&
+                  student.displayName.isNotEmpty
+              ? Text(
+                  student.displayName.substring(0, 1).toUpperCase(),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: primaryBlue),
+                )
+              : null,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                student.displayName,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: darkTextColor),
+              ),
+              const SizedBox(height: 4),
+              if (student.averageRating != null && student.averageRating! > 0)
+                _buildStarRating(student.averageRating!, size: 18)
+              else
+                const Text('Aucune évaluation',
+                    style: TextStyle(
+                        color: lightTextColor, fontStyle: FontStyle.italic)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBookingDetail(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: lightTextColor, size: 20),
+        const SizedBox(width: 16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style: const TextStyle(color: lightTextColor, fontSize: 13)),
+            const SizedBox(height: 2),
+            Text(value,
+                style: const TextStyle(
+                    color: darkTextColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15)),
+          ],
+        )
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: isLoading ? null : onDecline,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: redColor,
+              side: BorderSide(color: redColor.withOpacity(0.5)),
+               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Refuser'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton(
+            onPressed: isLoading ? null : onAccept,
+            style: FilledButton.styleFrom(
+              backgroundColor: greenColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: isLoading
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Text('Accepter'),
+          ),
+        ),
+      ],
+    );
+  }
 }
+
+// --- AUTRES CARTES (Version Material) ---
 
 class _BookingCard extends StatelessWidget {
   final Booking booking;
@@ -422,15 +557,32 @@ class _BookingCard extends StatelessWidget {
       {required this.booking, required this.onReviewSubmitted});
 
   Widget _buildStatusBadge(BookingStatus status) {
-    if (status == BookingStatus.accepted) {
-      return const ShadBadge(
-          backgroundColor: Colors.green,
-          child: Text('Accepted', style: TextStyle(color: Colors.white)));
-    } else if (status == BookingStatus.pending) {
-      return const ShadBadge.secondary(child: Text('Pending'));
-    } else {
-      return const ShadBadge.destructive(child: Text('Refused'));
+    Color badgeColor;
+    String text;
+    Color textColor = Colors.white;
+
+    switch (status) {
+      case BookingStatus.accepted:
+        badgeColor = greenColor;
+        text = 'Accepted';
+        break;
+      case BookingStatus.pending:
+        badgeColor = Colors.orange;
+        text = 'Pending';
+        break;
+      default:
+        badgeColor = lightTextColor;
+        text = 'Unknown';
     }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: badgeColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(text, style: TextStyle(color: textColor, fontSize: 12)),
+    );
   }
 
   @override
@@ -447,71 +599,81 @@ class _BookingCard extends StatelessWidget {
       future: _listingService.getListing(booking.listingid),
       builder: (context, listingSnapshot) {
         if (listingSnapshot.connectionState == ConnectionState.waiting) {
-          return const ShadCard(title: Text('Loading Listing...'));
+          return const Card(child: ListTile(title: Text('Loading Listing...')));
         }
 
         final listingTitle =
             listingSnapshot.data?.title ?? 'Listing Not Found';
         final ownerId = listingSnapshot.data?.ownerId ?? '';
 
-        return ShadCard(
-          backgroundColor: Colors.white,
-          title: Text(listingTitle,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: darkTextColor)),
-          description: Text(dateRange,
-              style: const TextStyle(color: lightTextColor, fontSize: 15)),
-          footer: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return Card(
+            color: Colors.white,
+            elevation: 1,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: FutureBuilder<UserModel?>(
-                      future:
-                          _profileService.getUserProfile(booking.homeownerid),
+                   Text(listingTitle,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: darkTextColor)),
+                  const SizedBox(height: 4),
+                  Text(dateRange,
+                      style: const TextStyle(color: lightTextColor, fontSize: 15)),
+                  const Divider(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: FutureBuilder<UserModel?>(
+                          future:
+                              _profileService.getUserProfile(booking.homeownerid),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return const Text('Loading host...');
+                            return Text('Host: ${snapshot.data?.displayName ?? 'N/A'}',
+                                style: const TextStyle(color: lightTextColor));
+                          },
+                        ),
+                      ),
+                      _buildStatusBadge(booking.status),
+                    ],
+                  ),
+                  if (canBeRated)
+                    FutureBuilder<bool>(
+                      future: _reviewService.hasStudentReviewedProperty(
+                          booking.studentid, booking.listingid),
                       builder: (context, snapshot) {
-                        if (!snapshot.hasData) return const Text('Loading host...');
-                        return Text('Host: ${snapshot.data?.displayName ?? 'N/A'}',
-                            style: const TextStyle(color: lightTextColor));
+                        if (snapshot.connectionState == ConnectionState.waiting ||
+                            snapshot.data == true) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 40)
+                            ),
+                            onPressed: () async {
+                              final currentContext = context;
+                              final reviewWasSubmitted = await Navigator.push<bool>(
+                                currentContext,
+                                MaterialPageRoute(
+                                  builder: (context) => RateListingScreen(
+                                      propertyId: booking.listingid,
+                                      ownerId: ownerId),
+                                ),
+                              );
+                              if (reviewWasSubmitted == true) onReviewSubmitted();
+                            },
+                            child: const Text('Rate Your Stay'),
+                          ),
+                        );
                       },
                     ),
-                  ),
-                  _buildStatusBadge(booking.status),
                 ],
               ),
-              if (canBeRated)
-                FutureBuilder<bool>(
-                  future: _reviewService.hasStudentReviewedProperty(
-                      booking.studentid, booking.listingid),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting ||
-                        snapshot.data == true) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: ShadButton.outline(
-                        width: double.infinity,
-                        onPressed: () async {
-                          final reviewWasSubmitted = await Navigator.push<bool>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => RateListingScreen(
-                                  propertyId: booking.listingid,
-                                  ownerId: ownerId),
-                            ),
-                          );
-                          if (reviewWasSubmitted == true) onReviewSubmitted();
-                        },
-                        child: const Text('Rate Your Stay'),
-                      ),
-                    );
-                  },
-                ),
-            ],
-          ),
+            ),
         );
       },
     );
@@ -548,71 +710,81 @@ class _StudentToRateCard extends StatelessWidget {
             if (!studentSnapshot.hasData) return const SizedBox.shrink();
             final student = studentSnapshot.data!;
             
-            // Utilisation de 'photoUrl' qui est le nom correct confirmé par user_model.dart
             final imageUrl = student.photoUrl;
             final hasAvatar = imageUrl != null && imageUrl.isNotEmpty;
 
-            return ShadCard(
-              backgroundColor: Colors.white,
-              footer: SizedBox(
-                width: double.infinity,
-                child: ShadButton(
-                  backgroundColor: primaryBlue,
-                  onPressed: () async {
-                    final reviewWasSubmitted = await Navigator.push<bool>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RateStudentScreen(
-                          studentId: booking.studentid,
-                          propertyId: booking.listingid,
-                          studentName: student.displayName,
-                        ),
+            return Card(
+                color: Colors.white,
+                elevation: 1,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: lightGreyBackground,
+                            backgroundImage:
+                                hasAvatar ? NetworkImage(imageUrl) : null,
+                            child: !hasAvatar
+                                ? const Icon(Icons.person_outline,
+                                    color: lightTextColor, size: 28)
+                                : null,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Review ${student.displayName}",
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: darkTextColor)),
+                                const SizedBox(height: 2),
+                                Text("For the stay at: $listingTitle",
+                                    style: const TextStyle(color: lightTextColor)),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    );
-                    if (reviewWasSubmitted == true) onReviewSubmitted();
-                  },
-                  child: const Text("Leave a Review",
-                      style: TextStyle(color: Colors.white)),
+                      const SizedBox(height: 16),
+                       FilledButton(
+                         style: FilledButton.styleFrom(
+                           backgroundColor: primaryBlue,
+                           minimumSize: const Size(double.infinity, 40)
+                         ),
+                        onPressed: () async {
+                          final currentContext = context;
+                          final reviewWasSubmitted = await Navigator.push<bool>(
+                            currentContext,
+                            MaterialPageRoute(
+                              builder: (context) => RateStudentScreen(
+                                studentId: booking.studentid,
+                                propertyId: booking.listingid,
+                                studentName: student.displayName,
+                              ),
+                            ),
+                          );
+                          if (reviewWasSubmitted == true) onReviewSubmitted();
+                        },
+                        child: const Text("Leave a Review"),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: lightGreyBackground,
-                    backgroundImage:
-                        hasAvatar ? NetworkImage(imageUrl) : null,
-                    child: !hasAvatar
-                        ? const Icon(Icons.person_outline,
-                            color: lightTextColor, size: 28)
-                        : null,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Review ${student.displayName}",
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: darkTextColor)),
-                        const SizedBox(height: 2),
-                        Text("For the stay at: $listingTitle",
-                            style: const TextStyle(color: lightTextColor)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
+                );
           },
         );
       },
     );
   }
 }
+
 
 class _CreateListingFab extends StatefulWidget {
   const _CreateListingFab();
@@ -666,4 +838,21 @@ class _CreateListingFabState extends State<_CreateListingFab> {
       },
     );
   }
+}
+
+/// Helper pour afficher les étoiles (pour l'affichage uniquement)
+Widget _buildStarRating(double rating, {double size = 18, Color color = goldColor}) {
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: List.generate(5, (index) {
+      final double starValue = index + 1;
+      IconData iconData = Icons.star_border_rounded;
+      if (starValue <= rating) {
+        iconData = Icons.star_rounded;
+      } else if (starValue - 0.5 <= rating) {
+        iconData = Icons.star_half_rounded;
+      }
+      return Icon(iconData, color: color, size: size);
+    }),
+  );
 }
