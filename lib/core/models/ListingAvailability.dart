@@ -7,15 +7,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ListingAvailability {
   final List<AvailabilityWindow> windows;
   /// Jours indisponibles sous forme 'YYYY-MM-DD' (UTC)
-  final int? minStayNights;
-  final int? maxStayNights;
   final String timezone;           // ex: "Europe/Zurich"
   final List<String> monthsIndex;  // ex: ["2025-09","2025-10"]
 
   ListingAvailability({
     required this.windows,
-    this.minStayNights,
-    this.maxStayNights,
     this.timezone = "Europe/Zurich",
     this.monthsIndex = const [],
   });
@@ -43,15 +39,11 @@ class ListingAvailability {
   ListingAvailability copyWith({
     List<AvailabilityWindow>? windows,
     List<String>? blackoutDates,
-    int? minStayNights,
-    int? maxStayNights,
     String? timezone,
     List<String>? monthsIndex,
   }) {
     return ListingAvailability(
       windows: windows ?? this.windows,
-      minStayNights: minStayNights ?? this.minStayNights,
-      maxStayNights: maxStayNights ?? this.maxStayNights,
       timezone: timezone ?? this.timezone,
       monthsIndex: monthsIndex ?? this.monthsIndex,
     );
@@ -63,8 +55,6 @@ class ListingAvailability {
       windows: (map['windows'] as List<dynamic>? ?? [])
           .map((m) => AvailabilityWindow.fromMap(Map<String, dynamic>.from(m)))
           .toList(),
-      minStayNights: (map['minStayNights'] as num?)?.toInt(),
-      maxStayNights: (map['maxStayNights'] as num?)?.toInt(),
       timezone: (map['timezone'] as String?) ?? "Europe/Zurich",
       monthsIndex: (map['monthsIndex'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
@@ -74,8 +64,6 @@ class ListingAvailability {
 
   Map<String, dynamic> toMap() => {
         'windows': windows.map((w) => w.toMap()).toList(),
-        'minStayNights': minStayNights,
-        'maxStayNights': maxStayNights,
         'timezone': timezone,
         'monthsIndex': monthsIndex,
       };
@@ -85,8 +73,6 @@ class ListingAvailability {
     final idx = _buildMonthsIndex(windows);
     return ListingAvailability(
       windows: windows,
-      minStayNights: minStayNights,
-      maxStayNights: maxStayNights,
       timezone: timezone,
       monthsIndex: idx,
     );
