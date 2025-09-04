@@ -1,18 +1,18 @@
 # Documentation – Room Renting (Flutter + Firebase)
 
 > **Scope**
-> • Architecture du projet
-> • Configuration Firebase
-> • Initialisation Firebase dans Flutter
-> • Utilisation de Firestore (CRUD + exemples)
-> • Utilisation de Firebase Authentication
-> • Règles de sécurité Firestore (CRUD basé permissions)
+> • Project architecture
+> • Firebase configuration
+> • Firebase initialization in Flutter
+> • Firestore usage
+> • Firebase Authentication usage
+> • Firestore security rules (CRUD-based permissions)
 
 ---
 
 ## 1) Architecture
 
-**Couches & modules**
+**Layers & modules**
 
 ```
 lib/
@@ -21,16 +21,16 @@ lib/
 │  ├─ services/            # AuthService, ListingService, BookingService, ProfileService
 │  └─ utils/               # helpers
 ├─ features/
-│  ├─ authentication/      # écrans login / sign up
-│  ├─ listings/            # liste, détail, création/édition
-│  ├─ bookings/            # planification & gestion des réservations
-│  ├─ reviews/             # avis
-│  └─ widgets/             # UI réutilisable
+│  ├─ authentication/      # login / sign up screens
+│  ├─ listings/            # list, details, create/edit
+│  ├─ bookings/            # planning & reservation management
+│  ├─ reviews/             # reviews
+│  └─ widgets/             # reusable UI
 ├─ router/                 # go_router (navigation)
 └─ main.dart               # bootstrap + Firebase.initializeApp
 ```
 
-**Data Flow (simplifié)**
+**Data Flow (simplified)**
 
 ```
 UI (features/*)  →  Services (core/services/*)  →  Firebase (Auth/Firestore/Storage)
@@ -38,19 +38,66 @@ UI (features/*)  →  Services (core/services/*)  →  Firebase (Auth/Firestore/
                      Models (core/models/*)  ←─────────────┘
 ```
 
-Libs clés : Flutter, Riverpod/Provider, go\_router, shadcn\_ui, cloud\_firestore, firebase\_auth, firebase\_storage.
+### Key Libraries
+
+**Firebase**
+
+* `firebase_core` → Firebase initialization.
+* `cloud_firestore` → Firestore NoSQL database.
+* `firebase_auth` → authentication (email, Google, etc.).
+* `firebase_storage` → file storage (images, docs…).
+
+**Files & media**
+
+* `image_picker` → pick images from gallery/camera.
+* `file_picker` → pick any type of file.
+* `carousel_slider` → carousel widget for image slideshows.
+* `cached_network_image` → optimized caching of network images.
+* `geolocator` → retrieve device GPS position.
+* `geocoding` → convert GPS coordinates ↔ addresses.
+* `http` → HTTP/REST requests.
+
+**State management & routing**
+
+* `flutter_hooks` → simplified reactive logic with hooks.
+* `flutter_riverpod` → modern & robust state management.
+* `go_router` → declarative route-based navigation.
+
+**App info & external links**
+
+* `package_info_plus` → app version/build info.
+* `url_launcher` → open external links (web, mail, phone…).
+
+**UI & utilities**
+
+* `cupertino_icons` → iOS-style icons.
+* `provider` → legacy state manager (may duplicate Riverpod).
+* `uuid` → generate unique IDs.
+* `shadcn_ui` → UI component library.
+* `country_picker` → country picker widget.
+* `lucide_icons_flutter` → Lucide icons pack.
+
+**Reviews & text formatting**
+
+* `intl` → date/number formatting (internationalization).
+* `timeago` → relative time display (“2 hours ago”).
+
+**Dev only**
+
+* `flutter_test` → unit & widget testing framework.
+* `flutter_lints` → linting rules (best practices).
 
 ---
 
-## 2) Configurer Firebase
+## 2) Firebase Configuration
 
-1. **Créer le projet** sur console.firebase.google.com
-2. **Activer** :
+1. **Create the project** at console.firebase.google.com
+2. **Enable**:
 
-   * *Authentication* → Email/Password (et autres fournisseurs si besoin)
-   * *Firestore Database* → mode production
+   * *Authentication* → Email/Password (and others if needed)
+   * *Firestore Database* → production mode
    * *Storage*
-3. **Associer les apps** : Android, iOS, Web.
+3. **Register apps**: Android, iOS, Web.
 4. **FlutterFire CLI**
 
    ```bash
@@ -58,19 +105,17 @@ Libs clés : Flutter, Riverpod/Provider, go\_router, shadcn\_ui, cloud\_firestor
    flutterfire configure
    ```
 
-   → Génère `lib/firebase_options.dart` pour chaque plateforme.
+   → Generates `lib/firebase_options.dart` for each platform.
 
-**Android** : renseigner `applicationId` dans `android/app/build.gradle`.
-
-**iOS** : ouvrir `Runner.xcworkspace` après ajout de l’app iOS.
-
-**Web** : le `index.html` est auto‑configuré par FlutterFire; si besoin, ajoutez vos meta CSP.
+**Android**: set `applicationId` in `android/app/build.gradle`.
+**iOS**: open `Runner.xcworkspace` after registering iOS app.
+**Web**: `index.html` is auto-configured by FlutterFire; add CSP meta if needed.
 
 ---
 
-## 3) Initialiser Firebase (Flutter)
+## 3) Firebase Initialization (Flutter)
 
-**pubspec.yaml** (extrait)
+**pubspec.yaml** (excerpt)
 
 ```yaml
 dependencies:
@@ -80,7 +125,7 @@ dependencies:
   firebase_storage: ^12.x
 ```
 
-**main.dart** (bootstrap minimal)
+**main.dart** (minimal bootstrap)
 
 ```dart
 import 'package:flutter/material.dart';
@@ -96,92 +141,117 @@ Future<void> main() async {
 
 ---
 
-## 4) Firestore – Utilisation
-
-### Collections & documents
-
-* **Profile/{uid}**: `{ displayName, phone, photoUrl, school, country, role }`
-* **Listing/{listingId}**: `{ ownerId, title, description, city, address, rentPerMonth, availability: { windows:[{start,end}] } }`
-* **bookings/{bookingId}**: `{ listingId, hostId, studentId, start, end, status }`
-* **Review/{reviewId}**: `{ bookingId, listingId, authorId, rating, comment }`
-
-> **Indexation** : créez les index au besoin (Firestore vous proposera un lien d’index quand une requête échoue).
-
-### Exemples CRUD (Dart)
-
-**Créer un listing**
-
-```dart
-final doc = FirebaseFirestore.instance.collection('Listing').doc();
-await doc.set({
-  'ownerId': uid,
-  'title': title,
-  'city': city,
-  'rentPerMonth': rent,
-  'createdAt': FieldValue.serverTimestamp(),
-});
-```
-
-**Lire les listings publics**
-
-```dart
-final qs = await FirebaseFirestore.instance
-  .collection('Listing')
-  .orderBy('createdAt', descending: true)
-  .limit(20)
-  .get();
-final listings = qs.docs.map((d) => d.data()).toList();
-```
-
-**Listings de l’owner courant** (compatible règles)
-
-```dart
-FirebaseFirestore.instance
-  .collection('Listing')
-  .where('ownerId', isEqualTo: uid)
-  .snapshots();
-```
-
-**Créer un booking (pending)**
-
-```dart
-final bRef = FirebaseFirestore.instance.collection('bookings').doc();
-await bRef.set({
-  'listingId': listingId,
-  'hostId': hostId,
-  'studentId': uid,
-  'start': Timestamp.fromDate(start),
-  'end': Timestamp.fromDate(end),
-  'status': 'pending',
-  'createdAt': FieldValue.serverTimestamp(),
-});
-```
-
-**Bookings de l’étudiant**
-
-```dart
-FirebaseFirestore.instance
-  .collection('bookings')
-  .where('studentId', isEqualTo: uid)
-  .snapshots();
-```
-
-**Bookings de l’hôte**
-
-```dart
-FirebaseFirestore.instance
-  .collection('bookings')
-  .where('hostId', isEqualTo: uid)
-  .snapshots();
-```
-
-> **Chevauchement de dates** : à gérer côté service (transaction/Cloud Function) – Firestore Rules ne peuvent pas faire de requêtes de plage.
+## 4) Firestore – Usage
 
 ---
 
-## 5) Firebase Authentication – Utilisation
+### Collections & documents
 
-**Inscription / connexion**
+#### **Profile/{uid}**
+
+Represents a user profile.
+
+```json
+{
+  "id": "string (Firebase uid)",
+  "displayName": "string",
+  "email": "string",
+  "phone": "string",
+  "photoUrl": "string",
+  "school": "string",
+  "country": "string",
+  "role": "string (student | homeowner | admin)",
+  "createdAt": "timestamp"
+}
+```
+
+---
+
+#### **Listing/{listingId}**
+
+Listing posted by a homeowner.
+
+```json
+{
+  "id": "string",
+  "ownerId": "string (Profile.uid)",
+  "title": "string",
+  "description": "string",
+  "city": "string",
+  "addressLine": "string",
+  "lat": "double",
+  "lng": "double",
+  "rentPerMonth": "number",
+  "predictedRentPerMonth": "number",
+  "num_rooms": "number",
+  "amenities": {
+    "wifi_incl": "bool",
+    "is_furnished": "bool",
+    "car_park": "bool",
+    "charges_incl": "bool"
+  },
+  "availability": {
+    "windows": [
+      { "start": "timestamp|string", "end": "timestamp|string", "label": "string|null" }
+    ],
+    "minStayNights": "number",
+    "maxStayNights": "number"
+  },
+  "images": ["string (urls)"],
+  "status": "string (active | archived)",
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```
+
+---
+
+#### **bookings/{bookingId}**
+
+Booking made by a student for a listing.
+
+```json
+{
+  "id": "string",
+  "listingid": "string (Listing.id)",
+  "homeownerid": "string (Profile.uid)",
+  "studentid": "string (Profile.uid)",
+  "start": "timestamp",
+  "end": "timestamp",
+  "nights": "number",
+  "price": "number",
+  "status": "string (pending | accepted | declined | cancelled)",
+  "createdAt": "timestamp"
+}
+```
+
+---
+
+#### **Review/{reviewId}**
+
+Review submitted after an accepted booking.
+
+```json
+{
+  "id": "string",
+  "bookingId": "string (bookings.id)",
+  "listingId": "string (Listing.id)",
+  "ownerId": "string (Profile.uid)",
+  "studentId": "string (Profile.uid)",
+  "reviewerType": "string (owner | student)",
+  "rating": "number (1-5)",
+  "comment": "string",
+  "createdAt": "timestamp"
+}
+```
+
+> **Indexing**: Firestore will suggest indexes when a query fails; create them as required.
+
+---
+
+## 5) Firebase Authentication – Usage
+
+**Sign up / Sign in**
 
 ```dart
 final auth = FirebaseAuth.instance;
@@ -189,112 +259,120 @@ await auth.createUserWithEmailAndPassword(email: email, password: pwd);
 await auth.signInWithEmailAndPassword(email: email, password: pwd);
 ```
 
-**État d’auth en direct**
+**Auth state stream**
 
 ```dart
 auth.authStateChanges().listen((user) {
-  if (user == null) { /* déconnecté */ } else { /* connecté */ }
+  if (user == null) { /* signed out */ } else { /* signed in */ }
 });
 ```
 
-**Utilisateur courant**
+**Current user**
 
 ```dart
-final user = FirebaseAuth.instance.currentUser; // null si déconnecté
+final user = FirebaseAuth.instance.currentUser; // null if logged out
 ```
 
-**Déconnexion**
+**Sign out**
 
 ```dart
 await FirebaseAuth.instance.signOut();
 ```
 
-**Rôles / Admin**
+**Roles / Admin**
 
-* Stockez `role` (affichage/logiciel) dans `Profile/{uid}`.
-* Pour un **admin** de sécurité, utilisez des **custom claims** via l’Admin SDK (Cloud Function) et lisez-les côté client avec `getIdTokenResult()` si nécessaire.
+* Store `role` (for UI/business logic) in `Profile/{uid}`.
+* For **secure admin roles**, use **custom claims** via the Admin SDK (Cloud Function), and read them client-side with `getIdTokenResult()`.
 
 ---
 
-## 6) Règles Firestore (CRUD par permissions)
+## 6) Firestore Rules (CRUD by permissions)
 
-> Minimalistes : pas de validation de schéma; uniquement qui a le droit d’écrire/lire.
+> Minimalist: no schema validation; only checks **who can read/write**.
 
 ```rules
-rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helpers
     function signedIn() { return request.auth != null; }
-    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function isAdmin()  { return signedIn() && request.auth.token.admin == true; }
 
-    // Profile
+    // ---------------- Profile ----------------
     match /Profile/{userId} {
-      allow read: if true; // ou signedIn()
+      allow read: if true;
+
       allow create: if signedIn() && request.auth.uid == userId;
       allow update: if signedIn() && request.auth.uid == userId
-                    && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+                    && (!('role' in request.resource.data)
+                        || request.resource.data.role == resource.data.role);
       allow delete: if isAdmin() || (signedIn() && request.auth.uid == userId);
     }
 
-    // Listing
+    // ---------------- Listing ----------------
     match /Listing/{listingId} {
       allow read: if true;
-      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if signedIn() && (resource.data.ownerId == request.auth.uid || isAdmin())
-                    && (!('ownerId' in request.resource.data) || request.resource.data.ownerId == resource.data.ownerId);
-      allow delete: if signedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
+
+      allow create: if signedIn()
+                    && request.resource.data.ownerId == request.auth.uid;
+
+      allow update: if signedIn()
+                    && (resource.data.ownerId == request.auth.uid || isAdmin())
+                    && (!('ownerId' in request.resource.data)
+                        || request.resource.data.ownerId == resource.data.ownerId);
+
+      allow delete: if signedIn()
+                    && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
-    // Bookings
+    // ---------------- Bookings ----------------
     match /bookings/{bookingId} {
-      allow read: if signedIn() && (resource.data.studentId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
-      allow create: if signedIn() && request.resource.data.studentId == request.auth.uid;
-      allow update: if signedIn() && (resource.data.studentId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin())
-                    && (!('studentId' in request.resource.data) || request.resource.data.studentId == resource.data.studentId)
-                    && (!('hostId' in request.resource.data) || request.resource.data.hostId == resource.data.hostId)
-                    && (!('listingId' in request.resource.data) || request.resource.data.listingId == resource.data.listingId);
-      allow delete: if signedIn() && (resource.data.studentId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
+      allow read: if true;
+
+      allow create: if signedIn()
+                    && request.resource.data.studentid == request.auth.uid;
+
+      allow update: if signedIn()
+                    && (resource.data.studentid == request.auth.uid
+                        || resource.data.homeownerid == request.auth.uid
+                        || isAdmin())
+                    && (!('studentid' in request.resource.data)
+                        || request.resource.data.studentid == resource.data.studentid)
+                    && (!('homeownerid' in request.resource.data)
+                        || request.resource.data.homeownerid == resource.data.homeownerid)
+                    && (!('listingid' in request.resource.data)
+                        || request.resource.data.listingid == resource.data.listingid);
+
+      allow delete: if signedIn()
+                    && (resource.data.studentid == request.auth.uid
+                        || resource.data.homeownerid == request.auth.uid
+                        || isAdmin());
     }
 
-    // Review
+    // ---------------- Review ----------------
     match /Review/{reviewId} {
       allow read: if true;
-      allow create: if signedIn() && request.resource.data.authorId == request.auth.uid;
-      allow update, delete: if signedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
+
+      allow create: if signedIn();
+      allow delete: if isAdmin();
+      allow update: if signedIn();
     }
   }
 }
 ```
 
-**Conseils**
+**Tips**
 
-* Testez vos règles avec **Firebase Emulator Suite** et le **Rules Playground**.
-* Bornez vos requêtes côté client (ex. `.where('hostId', isEqualTo: uid)`), pour que Firestore puisse évaluer les règles.
+* Test rules using **Firebase Emulator Suite** and the **Rules Playground**.
+* Always filter queries client-side (e.g., `.where('homeownerid', isEqualTo: uid)`) so Firestore can evaluate permissions efficiently.
 
 ---
 
-## 7) Déploiement & environnements
+## 7) Deployment & Environments
 
-* **Emulators**: `firebase emulators:start` pour développer hors prod.
-* **Déploiement Rules**: `firebase deploy --only firestore:rules`
+* **Emulators**: `firebase emulators:start` for local dev.
+* **Deploy rules**: `firebase deploy --only firestore:rules`
 * **Android App Bundle**: `flutter build appbundle --release`
-* **Web**: `flutter build web` puis héberger (Firebase Hosting ou autre).
+* **Web**: `flutter build web` then host on Firebase Hosting (or any static hosting).
 
 ---
-
-## 8) Troubleshooting rapide
-
-* *PERMISSION\_DENIED* : vérifiez la requête (bornes `.where(...)`) et l’auth.
-* *Missing or insufficient permissions* : la règle `update` empêche peut‑être un champ protégé (ex. `ownerId`, `role`).
-* *Index requis* : créez l’index proposé par la console Firestore.
-* *Horodatages* : utilisez `Timestamp` (Firestore) plutôt que des strings pour les dates manipulées.
-
----
-
-### Annexes (optionnel)
-
-* Diagrammes de navigation (go\_router)
-* Conventions de nommage & style
-* Matrice de permissions (qui peut créer/éditer/supprimer quoi)
-* Process de revue de code et branches Git
