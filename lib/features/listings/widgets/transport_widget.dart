@@ -10,11 +10,11 @@ import '../../../core/models/user_model.dart'; // enum UserRole
 
 /// Mapping par défaut nom d’école -> [lat, lng]
 const Map<String, List<double>> kDefaultSchoolCoords = {
-  "École de Design et Haute Ecole d'Art (EDHEA)": [46.291300, 7.520950],
-  "Haute Ecole de Gestion (HEG)": [46.293050, 7.536450],
-  "Haute Ecole d'Ingénierie (HEI)": [46.227420, 7.363820],
-  "Haute Ecole de Santé (HES)": [46.235870, 7.351330],
-  "Haute Ecole et Ecole Supérieure de Travail Social (HESTS)": [46.293050, 7.536450],
+  'School of Design and Art (EDHEA)': [46.291300, 7.520950],
+  'School of Management (HEG)': [46.293050, 7.536450],
+  'School of Engineering (HEI)': [46.227420, 7.363820],
+  'School of Health Sciences (HES)': [46.235870, 7.351330],
+  'School of Social Work (HESTS)': [46.293050, 7.536450],
 };
 
 /// Widget autonome : affiche les itinéraires Listing -> école de l'utilisateur
@@ -50,7 +50,8 @@ class StudentListingItinerary extends StatefulWidget {
   });
 
   @override
-  State<StudentListingItinerary> createState() => _StudentListingItineraryState();
+  State<StudentListingItinerary> createState() =>
+      _StudentListingItineraryState();
 }
 
 class _StudentListingItineraryState extends State<StudentListingItinerary> {
@@ -59,7 +60,7 @@ class _StudentListingItineraryState extends State<StudentListingItinerary> {
   // Contexte résolu depuis le profil
   String? _resolvedSchoolName;
   bool _isStudent = false;
-  bool _noUser = false;   // pas connecté
+  bool _noUser = false; // pas connecté
   bool _noSchool = false; // profil sans école
 
   @override
@@ -111,7 +112,9 @@ class _StudentListingItineraryState extends State<StudentListingItinerary> {
     // 3) Coords école
     final coords = widget.schoolCoords[_resolvedSchoolName!];
     if (coords == null || coords.length != 2) {
-      throw Exception("Coordonnées inconnues pour l'école: $_resolvedSchoolName");
+      throw Exception(
+        "Coordonnées inconnues pour l'école: $_resolvedSchoolName",
+      );
     }
 
     // 4) Appel API transport
@@ -137,12 +140,12 @@ class _StudentListingItineraryState extends State<StudentListingItinerary> {
   }
 
   ItinerariesUI _emptyUI() => ItinerariesUI(
-        fromLabel: '',
-        toLabel: '',
-        windowStart: DateTime.now(),
-        windowEnd: DateTime.now(),
-        itineraries: const [],
-      );
+    fromLabel: '',
+    toLabel: '',
+    windowStart: DateTime.now(),
+    windowEnd: DateTime.now(),
+    itineraries: const [],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -170,13 +173,17 @@ class _StudentListingItineraryState extends State<StudentListingItinerary> {
           if (_noUser) {
             return const _HintCard(
               title: "Connectez-vous pour voir les trajets",
-              subtitle: "Identifiez-vous pour récupérer votre école et les itinéraires.",
+              subtitle:
+                  "Identifiez-vous pour récupérer votre école et les itinéraires.",
             );
           }
-          if (_noSchool || _resolvedSchoolName == null || _resolvedSchoolName!.isEmpty) {
+          if (_noSchool ||
+              _resolvedSchoolName == null ||
+              _resolvedSchoolName!.isEmpty) {
             return const _HintCard(
               title: "Ajoutez votre école",
-              subtitle: "Renseignez votre campus dans le profil pour voir les trajets.",
+              subtitle:
+                  "Renseignez votre campus dans le profil pour voir les trajets.",
             );
           }
 
@@ -184,7 +191,8 @@ class _StudentListingItineraryState extends State<StudentListingItinerary> {
           if (data.itineraries.isEmpty) {
             return const _HintCard(
               title: "Aucune connexion trouvée",
-              subtitle: "Essayez un autre créneau ou vérifiez la sélection d’école.",
+              subtitle:
+                  "Essayez un autre créneau ou vérifiez la sélection d’école.",
             );
           }
 
@@ -274,10 +282,14 @@ class _ItineraryTile extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('${_hm(it.departure)} → ${_hm(it.arrival)}',
-                style: theme.textTheme.titleSmall),
-            Text('${it.durationMinutes} min',
-                style: theme.textTheme.bodyMedium),
+            Text(
+              '${_hm(it.departure)} → ${_hm(it.arrival)}',
+              style: theme.textTheme.titleSmall,
+            ),
+            Text(
+              '${it.durationMinutes} min',
+              style: theme.textTheme.bodyMedium,
+            ),
           ],
         ),
         const SizedBox(height: 4),
@@ -295,10 +307,12 @@ class _ItineraryTile extends StatelessWidget {
           spacing: 6,
           runSpacing: -8,
           children: it.products
-              .map((p) => Chip(
-                    label: Text(p),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ))
+              .map(
+                (p) => Chip(
+                  label: Text(p),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              )
               .toList(),
         ),
 
@@ -313,21 +327,25 @@ class _ItineraryTile extends StatelessWidget {
                   : [
                       if ((l.lineLabel ?? '').isNotEmpty) l.lineLabel,
                       if ((l.direction ?? '').isNotEmpty) '→ ${l.direction}',
-                      if ((l.toPlatform ?? '').isNotEmpty) '(Quai ${l.toPlatform})',
+                      if ((l.toPlatform ?? '').isNotEmpty)
+                        '(Quai ${l.toPlatform})',
                     ].whereType<String>().join(' ');
               return ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(icon),
-                title: Text('${l.fromName} → ${l.toName}',
-                    style: theme.textTheme.bodyMedium),
+                title: Text(
+                  '${l.fromName} → ${l.toName}',
+                  style: theme.textTheme.bodyMedium,
+                ),
                 subtitle: Text(
                   [
-                    if (l.fromTime != null && l.toTime != null)
-                      '${_hm(l.fromTime!)}→${_hm(l.toTime!)}',
-                    subtitle,
-                  ].where((e) => e.toString().trim().isNotEmpty)
-                   .map((e) => e.toString())
-                   .join(' • '),
+                        if (l.fromTime != null && l.toTime != null)
+                          '${_hm(l.fromTime!)}→${_hm(l.toTime!)}',
+                        subtitle,
+                      ]
+                      .where((e) => e.toString().trim().isNotEmpty)
+                      .map((e) => e.toString())
+                      .join(' • '),
                 ),
               );
             }).toList(),
@@ -352,16 +370,18 @@ class _SkeletonCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              const Icon(Icons.directions_transit, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  "Trajets vers ${schoolName ?? '…'}",
-                  style: theme.textTheme.titleMedium,
+            Row(
+              children: [
+                const Icon(Icons.directions_transit, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Trajets vers ${schoolName ?? '…'}",
+                    style: theme.textTheme.titleMedium,
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             const SizedBox(height: 8),
             _skeletonLine(),
             const SizedBox(height: 8),
@@ -375,30 +395,30 @@ class _SkeletonCard extends StatelessWidget {
   }
 
   Widget _skeletonLine({double widthFactor = 1}) => FractionallySizedBox(
-        widthFactor: widthFactor,
-        child: Container(
-          height: 12,
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(6),
-          ),
-        ),
-      );
+    widthFactor: widthFactor,
+    child: Container(
+      height: 12,
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(6),
+      ),
+    ),
+  );
 
   Widget _skeletonChipRow() => Wrap(
-        spacing: 6,
-        children: List.generate(
-          3,
-          (_) => Container(
-            height: 28,
-            width: 54,
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
+    spacing: 6,
+    children: List.generate(
+      3,
+      (_) => Container(
+        height: 28,
+        width: 54,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(14),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _ErrorCard extends StatelessWidget {
@@ -418,21 +438,23 @@ class _ErrorCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              const Icon(Icons.error_outline),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  "Impossible de charger les trajets ${schoolName == null ? '' : 'vers $schoolName'}",
-                  style: theme.textTheme.titleMedium,
+            Row(
+              children: [
+                const Icon(Icons.error_outline),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Impossible de charger les trajets ${schoolName == null ? '' : 'vers $schoolName'}",
+                    style: theme.textTheme.titleMedium,
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                tooltip: "Réessayer",
-              ),
-            ]),
+                IconButton(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  tooltip: "Réessayer",
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Text(
               error?.toString() ?? 'Erreur inconnue',

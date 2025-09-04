@@ -4,10 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:room_renting_group1/features/profile/state/profile_providers.dart';
-import 'package:room_renting_group1/core/models/user_model.dart'; // pour UserRole
+import 'package:room_renting_group1/core/models/user_model.dart';
+
+// --- Theme colors matching dashboard design ---
+const Color primaryBlue = Color(0xFF0D47A1);
+const Color lightGreyBackground = Color(0xFFF8F9FA);
+const Color darkTextColor = Color(0xFF343A40);
+const Color lightTextColor = Color(0xFF6C757D);
+
+// Class helper to hide scrollbar
+class _NoScrollbarBehavior extends ScrollBehavior {
+  @override
+  Widget buildOverscrollIndicator(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    return child;
+  }
+}
 
 class SettingsScreen extends ConsumerWidget {
   static const route = '/settings';
@@ -18,152 +32,179 @@ class SettingsScreen extends ConsumerWidget {
     final profileAsync = ref.watch(userProfileProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Paramètres')),
-      body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Erreur: $e')),
-        data: (user) {
-          final isAdmin = _isAdmin(user);
-
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // --- General ---
-              ShadCard(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionTitle(context, 'General'),
-                    _tile(
-                      context: context,
-                      icon: Icons.info_outline,
-                      title: 'About',
-                      subtitle: 'Infos app, équipe, licences',
-                      onTap: () => context.push('/about'),
+      backgroundColor: lightGreyBackground,
+      body: SafeArea(
+        child: ScrollConfiguration(
+          behavior: _NoScrollbarBehavior(),
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) {
+              return [
+                SliverAppBar(
+                  title: const Text(
+                    'Settings',
+                    style: TextStyle(
+                      color: primaryBlue,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
                     ),
-                    const Divider(),
-                    _tile(
-                      context: context,
-                      icon: Icons.notifications_none,
-                      title: 'Notifications',
-                      subtitle: 'Préférences à venir',
-                      onTap: () {},
-                    ),
-                    const Divider(),
-                    _tile(
-                      context: context,
-                      icon: Icons.privacy_tip_outlined,
-                      title: 'Privacy Policy',
-                      subtitle: 'Consulter la politique de confidentialité',
-                      onTap: () {
-                        // TODO: ouvrir un lien si vous en avez un (url_launcher)
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // --- Support ---
-              ShadCard(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionTitle(context, 'Support'),
-                    _tile(
-                      context: context,
-                      icon: Icons.bug_report_outlined,
-                      title: 'Signaler un bug',
-                      subtitle: 'Dites-nous ce qui cloche',
-                      onTap: () {
-                        // TODO: ouvrir un formulaire / email
-                      },
-                    ),
-                    const Divider(),
-                    _tile(
-                      context: context,
-                      icon: Icons.feedback_outlined,
-                      title: 'Feedback',
-                      subtitle: 'Vos idées nous intéressent',
-                      onTap: () {
-                        // TODO: ouvrir un formulaire / email
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // --- Admin (visible uniquement si admin) ---
-              if (isAdmin) ...[
-                ShadCard(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _sectionTitle(context, 'Admin'),
-                      _tile(
-                        context: context,
-                        icon: Icons.group_outlined,
-                        title: 'Utilisateurs',
-                        subtitle: 'Voir la liste des utilisateurs',
-                        onTap: () => context.push('/admin/users'),
-                      ),
-                    ],
+                  ),
+                  centerTitle: true,
+                  pinned: true,
+                  backgroundColor: lightGreyBackground,
+                  elevation: 0,
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: primaryBlue),
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
                 ),
-                const SizedBox(height: 16),
-              ],
-
-              // --- Sign out ---
-              ShadButton(
-                width: double.infinity,
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (context.mounted) {
-                    context.go('/login');
-                  }
-                },
-                child: const Text('Se déconnecter'),
+              ];
+            },
+            body: profileAsync.when(
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: primaryBlue),
               ),
-            ],
-          );
-        },
+              error: (e, st) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 64, color: lightTextColor),
+                    const SizedBox(height: 16),
+                    Text('Something went wrong',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: darkTextColor)),
+                    const SizedBox(height: 8),
+                    Text('$e',
+                        style: const TextStyle(color: lightTextColor)),
+                  ],
+                ),
+              ),
+              data: (user) => _buildSettingsContent(context, user),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  bool _isAdmin(UserModel? user) {
-    if (user == null) return false;
-    if (user.role == UserRole.admin) return true;
-    final raw = user.role.name.toLowerCase();
-    return raw == 'admin';
-  }
-
-  Widget _sectionTitle(BuildContext context, String text) {
-    final theme = ShadTheme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(text, style: theme.textTheme.muted.copyWith(fontWeight: FontWeight.bold)),
+  Widget _buildSettingsContent(BuildContext context, UserModel? user) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      children: [
+        // General Settings Section
+        _buildSection(
+          context: context,
+          title: 'General',
+          items: [
+            _SettingsItem(
+              icon: Icons.info_outline,
+              title: 'About',
+              subtitle: 'App info, team, and licenses',
+              onTap: () => context.push('/about'),
+            ),
+          ],
+        ),
+        // Bottom spacing
+        const SizedBox(height: 32),
+      ],
     );
   }
 
-  Widget _tile({
+  Widget _buildSection({
     required BuildContext context,
-    required IconData icon,
     required String title,
-    required String subtitle,
-    required VoidCallback onTap,
+    required List<_SettingsItem> items,
   }) {
-    final theme = ShadTheme.of(context);
-    return ListTile(
-      leading: Icon(icon, color: theme.colorScheme.primary),
-      title: Text(title, style: theme.textTheme.small),
-      subtitle: Text(subtitle, style: theme.textTheme.p),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 12, top: 8),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: darkTextColor,
+            ),
+          ),
+        ),
+        ShadCard(
+          backgroundColor: Colors.white,
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: items.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              final isLast = index == items.length - 1;
+
+              return Column(
+                children: [
+                  _buildSettingsTile(context, item),
+                  if (!isLast)
+                    const Divider(
+                      height: 1,
+                      indent: 60,
+                      color: Color(0xFFE9ECEF),
+                    ),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
+
+  Widget _buildSettingsTile(BuildContext context, _SettingsItem item) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: primaryBlue.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(item.icon, color: primaryBlue, size: 20),
+      ),
+      title: Text(
+        item.title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: darkTextColor,
+          fontSize: 16,
+        ),
+      ),
+      subtitle: Text(
+        item.subtitle,
+        style: const TextStyle(
+          color: lightTextColor,
+          fontSize: 14,
+        ),
+      ),
+      trailing: const Icon(
+        Icons.chevron_right,
+        color: lightTextColor,
+        size: 20,
+      ),
+      onTap: item.onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    );
+  }
+}
+
+class _SettingsItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  _SettingsItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 }

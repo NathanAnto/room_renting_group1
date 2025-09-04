@@ -1,7 +1,7 @@
 // lib/features/authentication/screens/login_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart'; // ✅ AJOUTER CET IMPORT
+import 'package:go_router/go_router.dart';
 import '../../../core/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,169 +12,233 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _auth = AuthService();
   bool _isLoading = false;
   String? _error;
 
   @override
   void dispose() {
-    _email.dispose();
-    _password.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
+  }
+
+  void _login() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      await _auth.signInWithEmail(_emailController.text.trim(), _passwordController.text.trim());
+    } catch (e) {
+      setState(() => _error = 'Login failed. Please check your credentials.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+    const primaryBlue = Color(0xFF0D47A1);
+    final lightGreyBackground = Colors.grey[200];
 
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Column(
-                  children: [
-                    Icon(Icons.home_work_outlined, size: 80, color: theme.colorScheme.primary),
-                    const SizedBox(height: 16),
-                    Text(
-                      'G1',
-                      style: theme.textTheme.displayMedium!.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Ease your room renting',
-                      style: theme.textTheme.titleMedium!.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 48),
-                  ],
-                ),
-                Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  elevation: 8,
-                  child: Padding(
-                    padding: const EdgeInsets.all(28),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Bienvenue',
-                            style: theme.textTheme.headlineSmall!.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Connectez-vous pour continuer',
-                            style: theme.textTheme.bodyMedium!.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.8),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          TextFormField(
-                            controller: _email,
-                            decoration: InputDecoration(
-                              labelText: 'Email',
-                              prefixIcon: Icon(Icons.email_outlined, color: theme.colorScheme.primary),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (v) => (v == null || !v.contains('@')) ? 'Email invalide' : null,
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _password,
-                            decoration: InputDecoration(
-                              labelText: 'Mot de passe',
-                              prefixIcon: Icon(Icons.lock_outline, color: theme.colorScheme.primary),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            obscureText: true,
-                            validator: (v) => (v == null || v.length < 6) ? '6 caractères minimum' : null,
-                          ),
-                          const SizedBox(height: 16),
-                          if (_error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8.0),
-                              child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-                            ),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                backgroundColor: theme.colorScheme.primary,
-                              ),
-                              onPressed: _isLoading
-                                  ? null
-                                  : () async {
-                                      if (!_formKey.currentState!.validate()) return;
-                                      setState(() { _isLoading = true; _error = null; });
-                                      try {
-                                        await _auth.signInWithEmail(_email.text.trim(), _password.text.trim());
-                                      } catch (e) {
-                                        setState(() => _error = 'Échec de connexion');
-                                      } finally {
-                                        if (mounted) setState(() => _isLoading = false);
-                                      }
-                                    },
-                              child: _isLoading
-                                  ? const SizedBox.square(dimension: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                  : Text('Se connecter', style: theme.textTheme.titleMedium!.copyWith(color: Colors.blueGrey)),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              // ✅ CORRECTION
-                              onPressed: () => context.go('/forgot'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: theme.colorScheme.primary,
-                              ),
-                              child: const Text('Mot de passe oublié ?'),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text("Pas de compte ?", style: theme.textTheme.bodyMedium),
-                              TextButton(
-                                // ✅ CORRECTION
-                                onPressed: () => context.go('/signup'),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: theme.colorScheme.primary,
-                                ),
-                                child: const Text('Créer un compte'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+      backgroundColor: lightGreyBackground,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(textTheme, primaryBlue),
+                  const SizedBox(height: 48),
+                  _buildLoginForm(textTheme, primaryBlue),
+                  const SizedBox(height: 24),
+                  _buildSignUpLink(context, textTheme, primaryBlue),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildHeader(TextTheme textTheme, Color primaryColor) {
+    final titleStyle = textTheme.displayLarge?.copyWith(
+      fontWeight: FontWeight.bold,
+      letterSpacing: -1,
+    );
+
+    return Column(
+      children: [
+        Text.rich(
+          TextSpan(
+            style: titleStyle?.copyWith(color: Colors.black87),
+            children: [
+              const TextSpan(text: 'G'),
+              TextSpan(
+                text: '1',
+                style: TextStyle(color: primaryColor),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Ease your student renting',
+          textAlign: TextAlign.center,
+          style: textTheme.titleMedium?.copyWith(
+            color: Colors.grey[700],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoginForm(TextTheme textTheme, Color primaryColor) {
+    final inputTextStyle = TextStyle(
+      color: Colors.grey[900], 
+      fontWeight: FontWeight.w500
+    );
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextFormField(
+            controller: _emailController,
+            cursorColor: Colors.grey[800],
+            style: inputTextStyle,
+            decoration: InputDecoration(
+              labelText: 'Email',
+              labelStyle: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w500),
+              prefixIcon: Icon(Icons.alternate_email_rounded, color: Colors.grey[500]),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            keyboardType: TextInputType.emailAddress,
+            // MODIFICATION: Validateur d'email amélioré.
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Email address is required.';
+              }
+              final emailRegex = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+");
+              if (!emailRegex.hasMatch(value)) {
+                return 'Please enter a valid email format.';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _passwordController,
+            cursorColor: Colors.grey[800],
+            style: inputTextStyle,
+            decoration: InputDecoration(
+              labelText: 'Password',
+              labelStyle: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w500),
+              prefixIcon: Icon(Icons.lock_outline_rounded, color: Colors.grey[500]),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            obscureText: true,
+            // MODIFICATION: Validateur de mot de passe amélioré.
+            validator: (value) {
+               if (value == null || value.isEmpty) {
+                return 'Password is required.';
+              }
+              return null;
+            },
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => context.go('/forgot'),
+              child: Text(
+                'Forgot Password?',
+                style: textTheme.bodyMedium?.copyWith(color: primaryColor),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.red[700], fontWeight: FontWeight.w500),
+              ),
+            ),
+
+          FilledButton(
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              backgroundColor: primaryColor,
+            ),
+            onPressed: _isLoading ? null : _login,
+            child: _isLoading
+                ? const SizedBox.square(
+                    dimension: 24,
+                    child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))
+                : Text(
+                    'Sign In',
+                    style: textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSignUpLink(BuildContext context, TextTheme textTheme, Color primaryColor) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        side: BorderSide(color: Colors.grey[400]!),
+      ),
+      onPressed: () => context.go('/signup'),
+      child: Text.rich(
+        TextSpan(
+          text: "Don't have an account? ",
+          style: textTheme.bodyMedium?.copyWith(color: Colors.grey[800]),
+          children: [
+            TextSpan(
+              text: 'Sign Up',
+              style: textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: primaryColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
