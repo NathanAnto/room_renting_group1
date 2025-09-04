@@ -2,7 +2,7 @@ name: room_renting_group1
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.0+4
 
 environment:
   sdk: ^3.9.0
@@ -16,11 +16,34 @@ dependencies:
   cloud_firestore: ^5.4.4
   firebase_auth: ^5.3.1
   firebase_storage: ^12.0.0
-  image_picker: ^1.1.1
+
+  # Files & media
+  image_picker: ^1.2.0
   file_picker: ^8.0.0
+  carousel_slider: ^5.1.1 # For image slideshows
+  cached_network_image: ^3.3.1 # For efficient network image loading
+  geolocator: ^12.0.0 # For getting current location
+  geocoding: ^3.0.0 # For reverse geocoding
+  http: ^1.5.0
+  flutter_hooks: ^0.21.3+1
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.2.0  # routing
+
+  # Info & external links
+  package_info_plus: ^8.0.2
+  url_launcher: ^6.3.0  
 
   # UI
   cupertino_icons: ^1.0.8
+  provider: ^6.1.5+1
+  uuid: ^4.5.1
+  shadcn_ui: ^0.29.0
+  country_picker: ^2.0.27
+  lucide_icons_flutter: ^3.0.9
+
+  #review
+  intl: ^0.20.2
+  timeago: ^3.6.0
 
 dev_dependencies:
   flutter_test:
