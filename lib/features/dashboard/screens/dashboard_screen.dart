@@ -652,7 +652,8 @@ class _BookingCard extends StatelessWidget {
                           padding: const EdgeInsets.only(top: 16),
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              minimumSize: const Size(double.infinity, 40)
+                              minimumSize: const Size(double.infinity, 40),
+                              backgroundColor: primaryBlue
                             ),
                             onPressed: () async {
                               final currentContext = context;

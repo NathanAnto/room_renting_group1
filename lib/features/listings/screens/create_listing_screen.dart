@@ -71,11 +71,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   // ---------- Const HES ----------
   static const Map<String, List<double>> kDefaultSchoolCoords = {
-    "École de Design et Haute Ecole d'Art (EDHEA)": [46.291300, 7.520950],
-    "Haute Ecole de Gestion (HEG)": [46.293050, 7.536450],
-    "Haute Ecole d'Ingénierie (HEI)": [46.227420, 7.363820],
-    "Haute Ecole de Santé (HES)": [46.235870, 7.351330],
-    "Haute Ecole et Ecole Supérieure de Travail Social (HESTS)": [46.293050, 7.536450],
+    'School of Design and Art (EDHEA)': [46.291300, 7.520950],
+    'School of Management (HEG)': [46.293050, 7.536450],
+    'School of Engineering (HEI)': [46.227420, 7.363820],
+    'School of Health Sciences (HES)': [46.235870, 7.351330],
+    'School of Social Work (HESTS)': [46.293050, 7.536450],
   };
 
   @override
@@ -103,7 +103,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   String _fmt2(double? v) => v == null ? '—' : v.toStringAsFixed(2);
 
-  String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'Required fields' : null;
+  String? _req(String? v) =>
+      (v == null || v.trim().isEmpty) ? 'Required fields' : null;
 
   String _guessImageContentType(PlatformFile f) {
     final ext = (f.extension ?? '').toLowerCase();
@@ -144,7 +145,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     setState(() {});
   }
 
-
   // ------------------- Distances auto -------------------
   Future<void> _updateHesDistance() async {
     if (_lat == null || _lng == null) {
@@ -156,7 +156,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       final d = _haversineKm(_lat!, _lng!, entry.value[0], entry.value[1]);
       if (d < best) best = d;
     }
-    _distNearestHesKm = best.isFinite ? double.parse(best.toStringAsFixed(3)) : null;
+    _distNearestHesKm = best.isFinite
+        ? double.parse(best.toStringAsFixed(3))
+        : null;
   }
 
   Future<void> _updatePublicTransportDistance() async {
@@ -166,17 +168,25 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     }
     try {
       final km = await _fetchNearestStationDistanceKm(_lat!, _lng!);
-      _distPublicTransportKm = km != null ? double.parse(km.toStringAsFixed(3)) : null;
+      _distPublicTransportKm = km != null
+          ? double.parse(km.toStringAsFixed(3))
+          : null;
     } catch (_) {
       _distPublicTransportKm = null;
     }
   }
 
-  static double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
+  static double _haversineKm(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
     const R = 6371.0;
     final dLat = _deg2rad(lat2 - lat1);
     final dLon = _deg2rad(lon2 - lon1);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(_deg2rad(lat1)) *
             math.cos(_deg2rad(lat2)) *
             math.sin(dLon / 2) *
@@ -206,7 +216,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
     double bestMeters = double.infinity;
     for (final s in list) {
-      final m = (s['distance'] is num) ? (s['distance'] as num).toDouble() : double.infinity;
+      final m = (s['distance'] is num)
+          ? (s['distance'] as num).toDouble()
+          : double.infinity;
       if (m < bestMeters) bestMeters = m;
     }
     if (!bestMeters.isFinite) return null;
@@ -249,9 +261,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       setState(() {});
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Prediction failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Prediction failed: $e')));
     } finally {
       if (mounted) setState(() => _predicting = false);
     }
@@ -291,15 +303,15 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         final url = await snap.ref.getDownloadURL();
         setState(() => _images.add(url));
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload image failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload image failed: $e')));
       }
     }
   }
 
   // ------------------- Disponibilités -------------------
-// lib/features/listings/screens/create_listing_screen.dart
+  // lib/features/listings/screens/create_listing_screen.dart
 
   // ------------------- Disponibilités -------------------
   Future<void> _pickWindow() async {
@@ -343,7 +355,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     final ownerId = user?.uid ?? '';
 
     // ville auto depuis _selectedPlace (si renseignée)
-    final inferredCity = _selectedPlace == null ? '' : _extractCityFromOsm(_selectedPlace!);
+    final inferredCity = _selectedPlace == null
+        ? ''
+        : _extractCityFromOsm(_selectedPlace!);
 
     final listing = Listing(
       id: null,
@@ -352,8 +366,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       description: _descCtrl.text.trim(),
       type: _typeFromRooms, // auto
       rentPerMonth: _pDouble(_rentCtrl.text),
-      predictedRentPerMonth:
-          _predictedCtrl.text.trim().isEmpty ? 0 : _pDouble(_predictedCtrl.text),
+      predictedRentPerMonth: _predictedCtrl.text.trim().isEmpty
+          ? 0
+          : _pDouble(_predictedCtrl.text),
       city: inferredCity,
       addressLine: _addressCtrl.text.trim(),
       lat: _lat ?? 0,
@@ -388,9 +403,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -450,7 +465,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Chip(
-                  label: Text('Type: ${_typeFromRooms == 'room' ? 'room' : 'entire_home'}'),
+                  label: Text(
+                    'Type: ${_typeFromRooms == 'room' ? 'room' : 'entire_home'}',
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -484,11 +501,17 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _readonly('Distance to closest public transport (km)', _fmt2(_distPublicTransportKm)),
+                    child: _readonly(
+                      'Distance to closest public transport (km)',
+                      _fmt2(_distPublicTransportKm),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _readonly('Proximity HES (km)', _fmt2(_distNearestHesKm)),
+                    child: _readonly(
+                      'Proximity HES (km)',
+                      _fmt2(_distNearestHesKm),
+                    ),
                   ),
                 ],
               ),
@@ -496,18 +519,25 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _predicting || !_canPredict() ? null : _predictPrice,
+                  onPressed: _predicting || !_canPredict()
+                      ? null
+                      : _predictPrice,
                   icon: _predicting
                       ? const SizedBox(
-                          width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Icon(Icons.auto_awesome),
                   label: Text(_predicting ? 'Calculating…' : 'Propose a price'),
                 ),
               ),
               if (_hasPrediction) ...[
                 const SizedBox(height: 8),
-                Text('Prix suggéré : ${_predictedCtrl.text} CHF',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  'Prix suggéré : ${_predictedCtrl.text} CHF',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
               ],
             ]),
             if (_hasPrediction)
@@ -516,9 +546,21 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 _multiline(_descCtrl, 'Description *', validator: _req),
                 Row(
                   children: [
-                    Expanded(child: _number(_rentCtrl, 'Rent CHF/month *', validator: _req)),
+                    Expanded(
+                      child: _number(
+                        _rentCtrl,
+                        'Rent CHF/month *',
+                        validator: _req,
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: _number(_predictedCtrl, 'Suggested rent CHF/month', readOnly: true)),
+                    Expanded(
+                      child: _number(
+                        _predictedCtrl,
+                        'Suggested rent CHF/month',
+                        readOnly: true,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -564,26 +606,42 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     );
   }
 
-  Widget _text(TextEditingController c, String label,
-      {String? helper, String? Function(String?)? validator, bool readOnly = false}) {
+  Widget _text(
+    TextEditingController c,
+    String label, {
+    String? helper,
+    String? Function(String?)? validator,
+    bool readOnly = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: TextFormField(
         controller: c,
-        decoration: InputDecoration(labelText: label, helperText: helper, border: const OutlineInputBorder()),
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: helper,
+          border: const OutlineInputBorder(),
+        ),
         validator: validator,
         readOnly: readOnly,
       ),
     );
   }
 
-  Widget _multiline(TextEditingController c, String label,
-      {String? Function(String?)? validator, int maxLines = 3}) {
+  Widget _multiline(
+    TextEditingController c,
+    String label, {
+    String? Function(String?)? validator,
+    int maxLines = 3,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: TextFormField(
         controller: c,
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
         maxLines: maxLines,
         validator: validator,
       ),
@@ -605,7 +663,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       decoration: const InputDecoration(
         border: OutlineInputBorder(),
       ).copyWith(labelText: label),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
+      keyboardType: const TextInputType.numberWithOptions(
+        decimal: true,
+        signed: false,
+      ),
       validator: validator,
       readOnly: readOnly,
       onChanged: (_) {
@@ -622,14 +683,20 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   Widget _readonly(String label, String value) {
     return TextFormField(
       readOnly: true,
-      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
       controller: TextEditingController(text: value),
     );
   }
 
   Widget _dropdownStatus() {
     return InputDecorator(
-      decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+      decoration: const InputDecoration(
+        labelText: 'Status',
+        border: OutlineInputBorder(),
+      ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _status,
@@ -689,7 +756,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                               shape: BoxShape.circle,
                             ),
                             padding: const EdgeInsets.all(4),
-                            child: const Icon(Icons.close, size: 16, color: Colors.white),
+                            child: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -717,7 +788,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         ),
         const SizedBox(height: 8),
         if (_windows.isEmpty)
-          const Text('No window has been added yet.', style: TextStyle(color: Colors.grey)),
+          const Text(
+            'No window has been added yet.',
+            style: TextStyle(color: Colors.grey),
+          ),
         if (_windows.isNotEmpty)
           Wrap(
             spacing: 8,
@@ -725,7 +799,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             children: _windows.map((w) {
               String fmt(DateTime d) =>
                   "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
-              return Chip(label: Text("${fmt(w.start)} → ${fmt(w.end)} (fin excl.)"));
+              return Chip(
+                label: Text("${fmt(w.start)} → ${fmt(w.end)} (fin excl.)"),
+              );
             }).toList(),
           ),
         const SizedBox(height: 8),
