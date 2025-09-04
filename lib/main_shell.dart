@@ -1,39 +1,26 @@
-// lib/main_shell.dart
-
+// lib/main_shell.dart (Mis à jour)
+ 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class MainShell extends StatelessWidget {
-  final Widget child;
+  final Widget child; // Le widget enfant (la page actuelle) fourni par GoRouter
 
   const MainShell({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF0D47A1);
-
     return Scaffold(
+      // Le corps de la page est maintenant l'enfant fourni par le routeur
       body: child,
+     
+      // La barre de navigation en bas
       bottomNavigationBar: BottomNavigationBar(
-        // --- Style Updates ---
-        backgroundColor: Colors.white,
-        selectedItemColor: primaryBlue, // Active icon color
-        unselectedItemColor: Colors.grey[500], // Inactive icon color
-        showSelectedLabels: false, // Hide text labels
-        showUnselectedLabels: false,
-        type: BottomNavigationBarType.fixed, // Ensures consistent layout
-        elevation: 1.0, // Subtle shadow for depth
-
-        // MODIFICATION: Set font sizes to 0 to completely remove the space
-        // reserved for labels, making the bar more compact vertically.
-        selectedFontSize: 0,
-        unselectedFontSize: 0,
-
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
             activeIcon: Icon(Icons.dashboard),
-            label: 'Dashboard', // Label is kept for semantics
+            label: 'Dashboard',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.explore_outlined),
@@ -46,12 +33,15 @@ class MainShell extends StatelessWidget {
             label: 'Profile',
           ),
         ],
+        // Calcule l'index actuel en fonction de la route
         currentIndex: _calculateSelectedIndex(context),
+        // La navigation est maintenant gérée par GoRouter
         onTap: (index) => _onItemTapped(index, context),
       ),
     );
   }
-
+ 
+  // Fonction pour déterminer quel onglet est actif en fonction de l'URL
   int _calculateSelectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
 
@@ -64,10 +54,11 @@ class MainShell extends StatelessWidget {
     if (location.startsWith('/profile')) {
       return 2;
     }
-    // Default to 'Explore' tab
+    // Par défaut, c'est l'accueil
     return 1;
   }
-
+ 
+  // Fonction pour naviguer lorsque l'on clique sur un onglet
   void _onItemTapped(int index, BuildContext context) {
     switch (index) {
       case 0:
@@ -82,4 +73,3 @@ class MainShell extends StatelessWidget {
     }
   }
 }
-
