@@ -110,7 +110,7 @@ class _BookingPlannerButtonState extends m.State<BookingPlannerButton> {
       context: context,
       firstDate: DateTime(now.year - 1, 1, 1),
       lastDate: DateTime(now.year + 3, 12, 31),
-      initialDateRange: m.DateTimeRange(start: start, end: end),
+      // initialDateRange: m.DateTimeRange(start: start, end: end),
       helpText: 'Sélectionne la période',
       saveText: 'Continuer',
       // ✅ ASTUCE QUI RÈGLE TON PROBLÈME DE TYPES :

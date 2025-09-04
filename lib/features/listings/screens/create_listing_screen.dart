@@ -59,9 +59,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   // Disponibilités
   final List<AvailabilityWindow> _windows = [];
-  final _minStayCtrl = TextEditingController();
-  final _maxStayCtrl = TextEditingController();
-  final _timezoneCtrl = TextEditingController(text: 'Europe/Zurich');
 
   // Statut
   String _status = 'draft';
@@ -90,9 +87,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     _descCtrl.dispose();
     _rentCtrl.dispose();
     _predictedCtrl.dispose();
-    _minStayCtrl.dispose();
-    _maxStayCtrl.dispose();
-    _timezoneCtrl.dispose();
     // --- REMOVED ---
     // _debounce?.cancel();
     super.dispose();
@@ -370,12 +364,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       numRooms: _pInt(_roomsCtrl.text),
       availability: ListingAvailability(
         windows: _windows,
-        minStayNights: _minStayCtrl.text.isEmpty ? null : _pInt(_minStayCtrl.text),
-        maxStayNights: _maxStayCtrl.text.isEmpty ? null : _pInt(_maxStayCtrl.text),
-        timezone: _timezoneCtrl.text.trim().isEmpty
-            ? 'Europe/Zurich'
-            // ignore: unnecessary_string_interpolations
-            : '${_timezoneCtrl.text.trim()}',
         monthsIndex: const [],
       ),
       amenities: {
@@ -741,15 +729,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             }).toList(),
           ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: _number(_minStayCtrl, 'Min nights')),
-            const SizedBox(width: 12),
-            Expanded(child: _number(_maxStayCtrl, 'Max nights')),
-            const SizedBox(width: 12),
-            Expanded(child: _text(_timezoneCtrl, 'Timezone', helper: 'IANA (ex. Europe/Zurich)')),
-          ],
-        ),
       ],
     );
   }
